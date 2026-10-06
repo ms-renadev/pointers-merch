@@ -13,7 +13,7 @@ const lanyardDesigns = [
 const pinsDesigns = [
   { name: 'Pin A', label: 'Pin A · Kompsay', imagePath: 'pins' },
   { name: 'Pin B', label: 'Pin B · Computer Science', imagePath: 'pins' },
-  { name: 'Pin C', label: 'Pin C · POinters Logo', imagePath: 'pins' },
+  { name: 'Pin C', label: 'Pin C · Pointers Logo', imagePath: 'pins' },
   { name: 'Pin D', label: 'Pin D · Iskolar ng Bayan at Teknolohiya', imagePath: 'pins' },
 ]
 const keychainsDesigns = [

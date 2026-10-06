@@ -71,7 +71,7 @@ export const PRODUCT_FALLBACK = [
     compareAtPrice: 349,
     meta: '240 GSM',
     description: 'Made with cotton of a low-poly Dino and DCS back illustration.',
-    sizes: ['S', 'M', 'L', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     designs: teeDesigns,
     discountEligible: true,
   },
@@ -140,7 +140,7 @@ export const PRODUCT_FALLBACK = [
     bundleItems: bundleComponents['PTR-BNDL-A'],
   // <-- Dito ilagay ang pangalan ng iisang image file mo (halimbawa: Bundle_Set_A)
     designs: bundleDesigns,
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
   {
@@ -155,7 +155,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-B'],
     designs: bundleDesigns,
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
   {
@@ -170,7 +170,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-C'],
     designs: bundleDesigns,
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
   {
@@ -185,12 +185,13 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt and lanyard. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-D'],
     designs: bundleDesigns,
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
 ]
 
 export function normalizeCatalog(products, variants) {
+  const productOrder = new Map(PRODUCT_FALLBACK.map((product, index) => [product.sku, index]))
   const variantsBySku = new Map()
   for (const variant of variants) {
     if (!variantsBySku.has(variant.product_sku)) variantsBySku.set(variant.product_sku, [])
@@ -201,7 +202,11 @@ export function normalizeCatalog(products, variants) {
     })
   }
 
-  return products.map((product) => ({
+  return [...products]
+    .sort((first, second) =>
+      (productOrder.get(first.sku) ?? Number.MAX_SAFE_INTEGER)
+      - (productOrder.get(second.sku) ?? Number.MAX_SAFE_INTEGER))
+    .map((product) => ({
     sku: product.sku,
     name: product.name,
     shortName: product.short_name,
@@ -211,9 +216,9 @@ export function normalizeCatalog(products, variants) {
     compareAtPrice: Number(product.compare_at_price ?? product.price),
     meta: product.meta,
     description: product.description,
-    sizes: product.sizes ?? [],
+    sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
     bundleItems: product.bundle_items ?? [],
     designs: variantsBySku.get(product.sku) ?? [],
     discountEligible: product.discount_eligible,
-  }))
+    }))
 }

@@ -31,6 +31,11 @@ create table if not exists public.store_product_variants (
   unique (product_sku, name)
 );
 
+alter table public.store_products
+  add column if not exists sort_order integer not null default 0;
+alter table public.store_product_variants
+  add column if not exists sort_order integer not null default 0;
+
 create table if not exists public.store_orders (
   id uuid primary key default gen_random_uuid(),
   reference_code text not null unique,
@@ -193,7 +198,6 @@ declare
   v_size text;
   v_quantity integer;
   v_subtotal numeric(10, 2) := 0;
-  v_discountable numeric(10, 2) := 0;
   v_discount numeric(10, 2) := 0;
   v_total numeric(10, 2);
   v_name text;
@@ -298,6 +302,9 @@ begin
         end if;
 
         v_size := nullif(btrim(v_component->>'size'), '');
+        if v_size = '2XL' then
+          raise exception '2XL is no longer an available size.' using errcode = '22023';
+        end if;
         if cardinality(v_component_product.sizes) > 0
            and (v_size is null or not (v_size = any(v_component_product.sizes))) then
           raise exception 'A selected bundle item size is unavailable.' using errcode = '22023';
@@ -346,6 +353,9 @@ begin
         raise exception 'A selected product design is unavailable.' using errcode = '22023';
       end if;
 
+      if v_size = '2XL' then
+        raise exception '2XL is no longer an available size.' using errcode = '22023';
+      end if;
       if cardinality(v_product.sizes) > 0
          and (v_size is null or not (v_size = any(v_product.sizes))) then
         raise exception 'A selected product size is unavailable.' using errcode = '22023';
@@ -356,9 +366,6 @@ begin
     end if;
 
     v_subtotal := v_subtotal + (v_product.price * v_quantity);
-    if v_product.discount_eligible then
-      v_discountable := v_discountable + (v_product.price * v_quantity);
-    end if;
 
     v_validated_items := v_validated_items || jsonb_build_array(jsonb_build_object(
       'sku', v_product.sku,
@@ -371,10 +378,7 @@ begin
     ));
   end loop;
 
-  if p_discount_requested then
-    v_discount := round(v_discountable * 0.05, 2);
-  end if;
-  v_total := greatest(v_subtotal - v_discount, 0);
+  v_total := v_subtotal;
 
   insert into public.store_orders (
     id, reference_code, customer_name, university_id, email, phone, program,
@@ -419,15 +423,15 @@ insert into public.store_products (
   sku, name, short_name, category, product_type, price, compare_at_price, meta,
   description, sizes, bundle_items, discount_eligible, sort_order
 ) values
-  ('PTR-TEE-01', 'Official CICS POINTERS Graphic Tee', 'Official CICS Graphic Tee', 'apparel', 'apparel', 349, 349, '240 GSM', 'Custom combed 240 GSM cotton with a low-poly Dino and CICS back illustration.', array['S','M','L','XL','2XL'], '[]', true, 1),
+  ('PTR-TEE-01', 'Official CICS POINTERS Graphic Tee', 'Official CICS Graphic Tee', 'apparel', 'apparel', 349, 349, '240 GSM', 'Custom combed 240 GSM cotton with a low-poly Dino and CICS back illustration.', array['S','M','L','XL'], '[]', true, 1),
   ('PTR-LAN-02', 'Heavy-Duty POINTERS Lanyard', 'POINTERS Woven Lanyard', 'wearables', 'wearable', 100, 100, '1 INCH WIDTH', 'Premium satin jacquard weave with quick-release buckle, CICS crest, and safety lock clip.', '{}', '[]', true, 2),
   ('PTR-PIN-04', 'Matte Finish Button Badges (44mm)', 'Matte Button Badge (44mm)', 'accessories', 'accessory', 35, 35, '44MM · VELVET MATTE', 'Scratch-resistant velvet-touch finish with rust-proof safety-pin backing.', '{}', '[]', true, 3),
   ('PTR-KEY-03', 'Poly-Vector Meme & Node Keychains', 'Poly-Vector Acrylic Keychain', 'accessories', 'accessory', 15, 15, '3MM ACRYLIC', 'Laser-cut double-sided acrylic with an industrial stainless-steel keyring.', '{}', '[]', true, 4),
   ('PTR-STK-05', 'Holographic & Matte Tech Vinyl Decals', 'Tech Vinyl Decals', 'accessories', 'accessory', 15, 15, 'DIE-CUT VINYL', 'Waterproof, UV-resistant laminated vinyl stickers for everyday campus use.', '{}', '[]', true, 5),
-  ('PTR-BNDL-A', 'Bundle Set A · Complete Pack', 'Bundle Set A', 'bundles', 'bundle', 499, 514, '5-PIECE BUNDLE', 'T-shirt, lanyard, pin, keychain, and stickers. Bundle price from the DCS price list.', array['S','M','L','XL','2XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-PIN-04","label":"Pin"},{"sku":"PTR-KEY-03","label":"Keychain"},{"sku":"PTR-STK-05","label":"Stickers pack"}]', false, 6),
-  ('PTR-BNDL-B', 'Bundle Set B · Tee + Lanyard + Pins', 'Bundle Set B', 'bundles', 'bundle', 449, 484, '3-PIECE BUNDLE', 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.', array['S','M','L','XL','2XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-PIN-04","label":"Pin"}]', false, 7),
-  ('PTR-BNDL-C', 'Bundle Set C · Tee + Lanyard + Keychain', 'Bundle Set C', 'bundles', 'bundle', 429, 464, '3-PIECE BUNDLE', 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.', array['S','M','L','XL','2XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-KEY-03","label":"Keychain"}]', false, 8),
-  ('PTR-BNDL-D', 'Bundle Set D · Tee + Lanyard', 'Bundle Set D', 'bundles', 'bundle', 419, 449, '2-PIECE BUNDLE', 'T-shirt and lanyard. Bundle price from the DCS price list.', array['S','M','L','XL','2XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"}]', false, 9)
+  ('PTR-BNDL-A', 'Bundle Set A · Complete Pack', 'Bundle Set A', 'bundles', 'bundle', 499, 514, '5-PIECE BUNDLE', 'T-shirt, lanyard, pin, keychain, and stickers. Bundle price from the DCS price list.', array['S','M','L','XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-PIN-04","label":"Pin"},{"sku":"PTR-KEY-03","label":"Keychain"},{"sku":"PTR-STK-05","label":"Stickers pack"}]', false, 6),
+  ('PTR-BNDL-B', 'Bundle Set B · Tee + Lanyard + Pins', 'Bundle Set B', 'bundles', 'bundle', 449, 484, '3-PIECE BUNDLE', 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.', array['S','M','L','XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-PIN-04","label":"Pin"}]', false, 7),
+  ('PTR-BNDL-C', 'Bundle Set C · Tee + Lanyard + Keychain', 'Bundle Set C', 'bundles', 'bundle', 429, 464, '3-PIECE BUNDLE', 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.', array['S','M','L','XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"},{"sku":"PTR-KEY-03","label":"Keychain"}]', false, 8),
+  ('PTR-BNDL-D', 'Bundle Set D · Tee + Lanyard', 'Bundle Set D', 'bundles', 'bundle', 419, 449, '2-PIECE BUNDLE', 'T-shirt and lanyard. Bundle price from the DCS price list.', array['S','M','L','XL'], '[{"sku":"PTR-TEE-01","label":"T-shirt"},{"sku":"PTR-LAN-02","label":"Lanyard"}]', false, 9)
 on conflict (sku) do update set
   name = excluded.name,
   short_name = excluded.short_name,

@@ -3,6 +3,8 @@ import './App.css'
 import { isSupabaseConfigured, supabase } from './lib/supabase'
 import { normalizeCatalog, PRODUCT_FALLBACK } from './data/products'
 import Admin from './components/Admin'
+import {DispatchCountdown} from './components/DispatchCountdown'
+import FaqSection from './components/FaqSection'
 
 const productImageFiles = import.meta.glob(
   './assets/*.{avif,gif,jpg,jpeg,png,webp}',
@@ -157,7 +159,7 @@ function ProductCard({ product, catalog, addToCart }) {
   )
 }
 
-function Cart({ cart, subtotal, discount, total, discountEnabled, onDiscount, onQuantity, onRemove, onCheckout }) {
+function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
   const count = cart.reduce((sum, item) => sum + item.qty, 0)
   return (
     <aside className="cart-column" id="cart">
@@ -185,14 +187,13 @@ function Cart({ cart, subtotal, discount, total, discountEnabled, onDiscount, on
         </div>
         <div className="cart-totals">
           <div><span>RAW_SUBTOTAL:</span><b>{money(subtotal)}</b></div>
-          <label className="discount-toggle"><span><input checked={discountEnabled} onChange={(event) => onDiscount(event.target.checked)} type="checkbox" /> APPLY CICS GUILD SUBSIDY (5%)</span><b>−{money(discount)}</b></label>
           <div><span>ESTIMATED FULFILLMENT:</span><b>₱0.00 (CAMPUS PICKUP)</b></div>
-          <div className="net-total"><span>NET_TOTAL_PAYABLE<small>OFFICIAL INVOICE BATCH #26</small></span><strong>{money(total)}</strong></div>
+          <div className="net-total"><span>TOTAL_PAYABLE<small>OFFICIAL INVOICE BATCH #26</small></span><strong>{money(subtotal)}</strong></div>
         </div>
         <button className="button-primary checkout-button" type="button" disabled={!cart.length} onClick={onCheckout}>PROCEED TO PRE-ORDER RESERVATION <Icon>arrow_forward</Icon></button>
         <p className="cart-footnote">SECURE DEPLOYMENT PROTOCOL // CAMPUS PICKUP</p>
       </div>
-      <div className="security-note"><b><Icon>fingerprint</Icon> ORDER STATUS</b><p>Student order details are submitted securely to the configured CICS store database and visible only to authorized store admins.</p></div>
+      <div className="security-note"><b><Icon>fingerprint</Icon> ORDER STATUS</b><p>Student order details are submitted securely to the configured POINTERS store database and visible only to authorized store admins.</p></div>
     </aside>
   )
 }
@@ -221,7 +222,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
           </div>
         ) : (
           <form className="checkout-form" onSubmit={onSubmit}>
-            <p className="form-notice">Your student details will be stored in the CICS store database for order fulfilment and will only be visible to authorized store admins.</p>
+            <p className="form-notice">Your student details will be stored in the POINTERS store database for order fulfilment and will only be visible to authorized store admins.</p>
             <div className="form-grid">
               <label>FULL NAME *<input name="name" autoComplete="name" maxLength="120" required /></label>
               <label>UNIVERSITY ID NUMBER *<input name="studentId" maxLength="40" required /></label>
@@ -251,15 +252,9 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
 
 function App() {
   const [products, setProducts] = useState(PRODUCT_FALLBACK)
-  const [catalogError, setCatalogError] = useState(
-    isSupabaseConfigured
-      ? ''
-      : 'Supabase is not configured. Showing the price-list catalog; online reservations are disabled.',
-  )
   const [cart, setCart] = useState([])
   const [activeCategory, setActiveCategory] = useState('all')
   const [query, setQuery] = useState('')
-  const [discountEnabled, setDiscountEnabled] = useState(false)
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false)
   const [receipt, setReceipt] = useState(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
@@ -271,14 +266,14 @@ function App() {
     let cancelled = false
     async function loadCatalog() {
       const [productResult, variantResult] = await Promise.all([
-        supabase.from('store_products').select('*').eq('is_active', true).order('sort_order'),
-        supabase.from('store_product_variants').select('*').eq('is_active', true).order('sort_order'),
+        supabase.from('store_products').select('*').eq('is_active', true),
+        supabase.from('store_product_variants').select('*').eq('is_active', true),
       ])
       if (cancelled) return
       if (productResult.error || variantResult.error) {
-        setCatalogError(`Could not load the database catalog: ${(productResult.error ?? variantResult.error).message}. Showing the spreadsheet price list until the database migration is applied.`)
+        console.warn('Could not load the database catalog; using the spreadsheet fallback.', productResult.error ?? variantResult.error)
       } else if (productResult.data.length === 0) {
-        setCatalogError('The database catalog is empty. Showing the spreadsheet price list until catalog seed data is added.')
+        console.warn('The database catalog is empty; using the spreadsheet fallback.')
       } else if (!productResult.data.every((product) =>
         typeof product.sku === 'string'
         && typeof product.short_name === 'string'
@@ -287,25 +282,19 @@ function App() {
         && Array.isArray(product.sizes)
         && Array.isArray(product.bundle_items)
         && typeof product.discount_eligible === 'boolean')) {
-        setCatalogError('The connected database has an older catalog schema. Run the store migration to sync products and prices; showing the spreadsheet price list for now.')
+        console.warn('The database catalog uses an older schema; using the spreadsheet fallback.')
       } else {
         setProducts(normalizeCatalog(productResult.data, variantResult.data))
-        setCatalogError('')
       }
     }
     loadCatalog().catch((error) => {
-      if (!cancelled) setCatalogError(`Could not load the database catalog: ${error.message}`)
+      if (!cancelled) console.warn('Could not load the database catalog; using the spreadsheet fallback.', error)
     })
     return () => { cancelled = true }
   }, [])
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.qty, 0), [cart])
-  const discountableSubtotal = useMemo(
-    () => cart.reduce((sum, item) => sum + (item.discountEligible ? item.price * item.qty : 0), 0),
-    [cart],
-  )
-  const discount = discountEnabled ? Math.round(discountableSubtotal * 0.05 * 100) / 100 : 0
-  const total = subtotal - discount
+  const total = subtotal
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const matchingProducts = products.filter((product) => {
     const matchesCategory = activeCategory === 'all' || product.category === activeCategory
@@ -329,7 +318,6 @@ function App() {
         components,
         price: product.price,
         qty: 1,
-        discountEligible: product.discountEligible,
       }]
     })
   }
@@ -379,7 +367,7 @@ function App() {
       const { data, error } = await supabase.rpc('create_store_order', {
         p_customer: customer,
         p_payment_method: formData.get('payment'),
-        p_discount_requested: discountEnabled,
+        p_discount_requested: false,
         p_items: items,
       })
       if (error) {
@@ -396,7 +384,7 @@ function App() {
   }
 
   if (isAdmin) return <Admin />
-
+  const reservationDeadline = "2026-10-12T23:59:59";
   return (
     <>
       <Header itemCount={itemCount} total={total} onCart={() => document.getElementById('cart')?.scrollIntoView({ behavior: 'smooth' })} onSearch={() => document.getElementById('catalog-search')?.focus()} />
@@ -409,15 +397,16 @@ function App() {
             <p className="hero-description">Official limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS.</p>
             <div className="hero-actions"><a className="button-primary" href="#catalog">EXPLORE THE CATALOG <Icon>arrow_downward</Icon></a><a className="text-link" href="#bundle-guide">VIEW THE BUNDLES <Icon>arrow_forward</Icon></a></div>
           </div>
-          <div className="hero-art">
-            <div className="hero-image-wrap">{productImages['pointers cover page'] ? <img src={productImages['pointers cover page']} alt="POINTERS merchandise collection" /> : <div className="image-placeholder hero-placeholder"><span>POINTERS 2026</span><Icon>inventory_2</Icon><small>ADD YOUR BUNDLE IMAGE</small></div>}</div>
-            <span className="art-stamp">RELEASE<br />10/18</span>
-            <span className="art-caption">POINTERS COMPUTING SOCIETY<br />MSU-MARAWI · CICS</span>
-          </div>
-          <div className="hero-status"><div><span>ORDER PROTOCOL</span><b>PRE-ORDER ONLY</b></div><div><span>DISPATCH LOCATION</span><b>CICS-MULTIMEDIA ROOM</b></div><div><span>BATCH STATUS</span><b><i className="status-dot" /> OPEN FOR ORDERS</b></div></div>
-        </section>
 
-        {catalogError && <div className="catalog-notice" role="status"><Icon>info</Icon><span>{catalogError}</span></div>}
+          <div className="hero-status hero-status-error">
+            <DispatchCountdown targetDate={reservationDeadline} />
+            <div className="dispatch-details">
+              <div><span>ORDER PROTOCOL:</span><b>PRE-ORDER ONLY</b></div>
+              <div><span>DISPATCH LOCATION:</span><b>CICS-MULTIMEDIA ROOM</b></div>
+              <div><span>RELEASE DATE:</span><b className="accent">OCTOBER 18, 2026</b></div>
+            </div>
+          </div>
+        </section>
 
         <section className="bundle-section" id="bundle-guide">
           <div className="section-kicker"><span>OFFICIAL BUNDLE PRICES</span><span>SOURCE // DCS-PRICELIST.XLSX</span></div>
@@ -444,7 +433,7 @@ function App() {
                 ? matchingProducts.map((product) => <ProductCard key={product.sku} product={product} catalog={products} addToCart={addToCart} />)
                 : <p className="no-results">No products match “{query}”. Try another search.</p>}
             </div>
-            <Cart cart={cart} subtotal={subtotal} discount={discount} total={total} discountEnabled={discountEnabled} onDiscount={setDiscountEnabled} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={openCheckout} />
+            <Cart cart={cart} subtotal={subtotal} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={openCheckout} />
           </div>
         </section>
 
@@ -456,11 +445,11 @@ function App() {
               ['M // 0xMEDIUM', '21 in / 53.3 cm', '28 in / 71.1 cm', '20 in / 50.8 cm', '5′4″–5′8″'],
               ['L // 0xLARGE', '22 in / 55.9 cm', '29 in / 73.7 cm', '21 in / 53.3 cm', '5′8″–5′11″'],
               ['XL // 0xX-LARGE', '23 in / 58.4 cm', '30 in / 76.2 cm', '22 in / 55.9 cm', '5′11″–6′2″'],
-              ['2XL // 0xXXL', '24 in / 61.0 cm', '31 in / 78.7 cm', '23 in / 58.4 cm', '6′2″ and above'],
             ].map((row) => <tr key={row[0]}>{row.map((cell) => <td key={cell}>{cell}</td>)}</tr>)}
           </tbody></table></div>
           <p className="table-note">Measurements are approximate. For a looser fit, consider choosing one size up.</p>
         </section>
+        <FaqSection />
       </main>
       <footer className="site-footer"><a className="brand" href="#top"><span className="brand-mark"><img src={productImages.logo} alt="" /></span><span className="brand-copy"><span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span><span className="brand-subtitle">MSU-MARAWI CICS · RELEASE 01/26</span></span></a><p>Student-run merchandise store · For order assistance, contact the POINTERS CICS committee.</p><a href="?admin=1">ADMIN</a><a href="#top">BACK TO TOP ↑</a></footer>
       <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} total={total} onSubmit={submitCheckout} receipt={receipt} busy={checkoutBusy} error={checkoutError} />

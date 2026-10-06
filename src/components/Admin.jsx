@@ -51,7 +51,7 @@ export default function Admin() {
     let cancelled = false
     supabase
       .from('store_orders')
-      .select('id, reference_code, customer_name, university_id, email, phone, program, payment_method, subtotal, discount_amount, total, status, created_at, store_order_items(product_sku, product_name, design_name, size, quantity, unit_price, line_total, selections)')
+      .select('id, reference_code, customer_name, college, email, phone, program, payment_method, payment_receipt_path, subtotal, discount_amount, total, status, created_at, store_order_items(product_sku, product_name, design_name, size, quantity, unit_price, line_total, selections)')
       .order('created_at', { ascending: false })
       .then(({ data, error: queryError }) => {
         if (cancelled) return
@@ -95,6 +95,25 @@ export default function Admin() {
       setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order))
     }
     setBusyOrder('')
+  }
+
+  async function viewPaymentProof(path) {
+    const proofWindow = window.open('about:blank', '_blank')
+    if (!proofWindow) {
+      setError('Allow pop-ups to view the private payment receipt.')
+      return
+    }
+
+    const { data, error: proofError } = await supabase.storage
+      .from('payment-proofs')
+      .createSignedUrl(path, 300)
+    if (proofError) {
+      proofWindow.close()
+      setError(`Could not open the payment receipt: ${proofError.message}`)
+      return
+    }
+
+    proofWindow.location.href = data.signedUrl
   }
 
   if (authLoading) return <main className="admin-page"><p>Checking admin session…</p></main>
@@ -157,9 +176,18 @@ export default function Admin() {
               </div>
 
               <div className="admin-order-customer">
-                <b>{order.customer_name} · {order.university_id}</b>
+                <b>{order.customer_name}{order.college ? ` · ${order.college}` : ''}</b>
                 <span>{order.email} · {order.phone}</span>
                 <span>{order.program} · {order.payment_method}</span>
+                {order.payment_receipt_path && (
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    onClick={() => viewPaymentProof(order.payment_receipt_path)}
+                  >
+                    VIEW PAYMENT RECEIPT
+                  </button>
+                )}
               </div>
 
               <ul>

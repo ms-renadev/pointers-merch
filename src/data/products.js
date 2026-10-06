@@ -31,9 +31,9 @@ const stickersDesigns = [
 ]
 // TAMA (walang extension at hiwalay sa bawat bundle):
 const bundleADesigns = [{ name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA' }]
-const bundleBDesigns = [{ name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB' }]
-const bundleCDesigns = [{ name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC' }]
-const bundleDDesigns = [{ name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD' }]
+const bundleBDesigns = [{ name: 'Bundle B', label: 'Bundle B · T-Shirt + Lanyard + Pins', imagePath: 'setB' }]
+const bundleCDesigns = [{ name: 'Bundle C', label: 'Bundle C · T-Shirt + Lanyard + Keychain', imagePath: 'setC' }]
+const bundleDDesigns = [{ name: 'Bundle D', label: 'Bundle D · T-Shirt + Lanyard', imagePath: 'setD' }]
 const bundleComponents = {
   'PTR-BNDL-A': [
     { sku: 'PTR-TEE-01', label: 'T-shirt' },
@@ -62,7 +62,7 @@ export const PRODUCT_FALLBACK = [
   {
     sku: 'PTR-TEE-01',
     name: 'Official MSU-POINTERS T-Shirt',
-    shortName: 'Official MSU-POINTERS Graphic Tee',
+    shortName: 'Official MSU-POINTERS T-Shirt',
     category: 'apparel',
     type: 'apparel',
     price: 349,
@@ -143,7 +143,7 @@ export const PRODUCT_FALLBACK = [
   },
   {
     sku: 'PTR-BNDL-B',
-    name: 'Bundle Set B · Tee + Lanyard + Pins',
+    name: 'Bundle Set B · T-Shirt + Lanyard + Pins',
     shortName: 'Bundle Set B',
     category: 'bundles',
     type: 'bundle',
@@ -158,7 +158,7 @@ export const PRODUCT_FALLBACK = [
   },
   {
     sku: 'PTR-BNDL-C',
-    name: 'Bundle Set C · Tee + Lanyard + Keychain',
+    name: 'Bundle Set C · T-Shirt + Lanyard + Keychain',
     shortName: 'Bundle Set C',
     category: 'bundles',
     type: 'bundle',
@@ -173,7 +173,7 @@ export const PRODUCT_FALLBACK = [
   },
   {
     sku: 'PTR-BNDL-D',
-    name: 'Bundle Set D · Tee + Lanyard',
+    name: 'Bundle Set D · T-Shirt + Lanyard',
     shortName: 'Bundle Set D',
     category: 'bundles',
     type: 'bundle',
@@ -212,8 +212,8 @@ export function normalizeCatalog(products, variants) {
 
       return {
         sku: product.sku,
-        name: product.name,
-        shortName: product.short_name,
+        name: product.name.replace(/\bTee\b/g, 'T-Shirt'),
+        shortName: product.short_name.replace(/\bTee\b/g, 'T-Shirt'),
         category: product.category,
         type: product.product_type,
         price: Number(product.price),

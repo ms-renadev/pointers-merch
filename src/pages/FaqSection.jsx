@@ -4,24 +4,39 @@ const faqData = [
   {
     id: '01',
     question: "Kailan at saan ang pick-up ng orders?",
-    answer: "Ang official release date at pick-up location ay sa October 18, 2026 sa CICS-Multimedia Room. Ihanda lamang ang inyong Student ID at Order Reference Number. Sa araw na iyon ay mayroong GAAP, kaya lahat ng Freshmen na may NSTP/ROTC class ay ipapa-excuse—may approved excuse letter na para rito."
+    answer: "Ang official release date at pick-up location ay sa **October 18, 2026** sa **CICS-Multimedia Room**. Ihanda lamang ang inyong Student ID at Order Reference Number. Sa araw na iyon ay mayroong GAAP, kaya lahat ng Freshmen na may NSTP/ROTC class ay ipapa-excuse—may approved excuse letter na para rito."
   },
   {
     id: '02',
     question: "Puwede bang magpa-claim sa ibang tao (Proxy Pick-up)?",
-    answer: "Oo, pinapayagan ang proxy pick-up! Siguraduhin lamang na magdala ang iyong proxy ng authorization letter o screenshot ng iyong Order Confirmation, kasama ang photocopy o picture ng iyong Student ID."
+    answer: "Oo, pinapayagan ang proxy pick-up! Siguraduhin lamang na magdala ang iyong proxy ng **authorization letter** o **screenshot ng iyong Order Confirmation**, kasama ang photocopy o picture ng iyong **Student ID**."
   },
   {
     id: '03',
     question: "Puwede pa bang mag-cancel o magpabago ng size pagkatapos mag-order?",
-    answer: "Paumanhin, ngunit hindi na po puwedeng mag-cancel o magpalit ng size kapag na-submit at na-process na ang inyong order. Ang mga items ay ipinapagawa batay sa eksaktong sukat at dami ng pre-order batch."
+    answer: "Paumanhin, ngunit **hindi na po puwedeng mag-cancel o magpalit ng size** kapag na-submit at na-process na ang inyong order. Ang mga items ay ipinapagawa batay sa eksaktong sukat at dami ng pre-order batch."
   },
   {
     id: '04',
     question: "Ano ang gagawin kung may sira o damage ang natanggap na merch?",
-    answer: "Paki-check nang maigi ang item bago umalis sa pick-up booth. Ang replacement para sa factory defect ay maaari lamang ma-process sa mismong pick-up day habang nasa booth."
+    answer: "Paki-check nang maigi ang item bago umalis sa pick-up booth. Ang replacement para sa **factory defect** ay maaari lamang ma-process sa **mismong pick-up day** habang nasa booth."
   }
 ];
+
+// Helper function para mag-parse ng markdown bold
+const renderFormattedText = (text) => {
+  const parts = text.split(/(\*\*.*?\*\*)/g);
+  return parts.map((part, index) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return (
+        <strong key={index} style={{ color: '#ffffff', fontWeight: '700' }}>
+          {part.slice(2, -2)}
+        </strong>
+      );
+    }
+    return part;
+  });
+};
 
 const FaqSection = () => {
   const [openIndex, setOpenIndex] = useState(null);
@@ -32,7 +47,7 @@ const FaqSection = () => {
 
   return (
     <section className="faq-section" id="faq" style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
-      {/* Header na kapareho ng Sizing Matrix / Catalog */}
+      {/* Header */}
       <div className="sizing-heading" style={{ marginBottom: '2.5rem', textAlign: 'left' }}>
         <span className="eyebrow" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
           <i className="status-dot" /> SYSTEM PROTOCOL // HELP DESK
@@ -55,7 +70,7 @@ const FaqSection = () => {
               style={{
                 border: isOpen ? '1px solid var(--accent, #dc2626)' : '1px solid rgba(255, 255, 255, 0.12)',
                 background: isOpen ? 'rgba(220, 38, 38, 0.04)' : 'rgba(15, 15, 15, 0.6)',
-                borderRadius: '0px', // Cyber/brutalist sharp corners
+                borderRadius: '0px',
                 transition: 'all 0.2s ease',
                 overflow: 'hidden'
               }}
@@ -119,15 +134,12 @@ const FaqSection = () => {
                     fontSize: '0.875rem',
                     lineHeight: '1.7',
                     opacity: 0.85,
-                    borderTop: '1px stroke rgba(255, 255, 255, 0.05)',
                     borderLeft: '2px solid var(--accent, #dc2626)',
                     marginLeft: '1.5rem',
                     marginBottom: '1.25rem'
                   }}
                 >
-                  {faq.answer.split('**').map((part, i) => 
-                    i % 2 === 1 ? <strong key={i} style={{ color: '#fff', fontWeight: 'bold' }}>{part}</strong> : part
-                  )}
+                  {renderFormattedText(faq.answer)}
                 </div>
               )}
             </div>

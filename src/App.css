@@ -253,6 +253,9 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .gcash-payment-details > div > b { margin-bottom: 3px; color: var(--pink); font: 600 9px var(--mono); }
 .gcash-payment-details p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
 .gcash-payment-details img { width: 176px; height: 174px; flex: 0 0 auto; object-fit: contain; image-rendering: pixelated; }
+.payment-proof-field { display: grid; gap: 7px; color: var(--ink); font: 600 9px var(--mono); }
+.payment-proof-field input { width: 100%; padding: 9px; border: 1px solid #d4ced1; background: white; font: 10px 'Plus Jakarta Sans', sans-serif; }
+.payment-proof-field small { color: var(--muted); font: 9px 'Plus Jakarta Sans', sans-serif; }
 .payment-summary { display: flex; justify-content: space-between; padding: 12px; background: var(--panel); color: var(--muted); font: 9px var(--mono); }
 .payment-summary b { color: var(--pink); font: 700 17px var(--display); }
 .confirm-button { width: 100%; }

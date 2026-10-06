@@ -196,12 +196,13 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
 
 function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error }) {
   const [paymentMethod, setPaymentMethod] = useState('GCash')
+  const [programSelection, setProgramSelection] = useState('')
   if (!isOpen) return null
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
       <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
         <div className="modal-heading">
-          <div><span className="eyebrow">RESERVATION PROTOCOL // BATCH 2026</span><h2 id="checkout-title">{receipt ? 'RESERVATION RECEIVED' : 'STUDENT ALLOCATION DETAILS'}</h2></div>
+          <div><span className="eyebrow">RESERVATION PROTOCOL // BATCH 2026</span><h2 id="checkout-title">{receipt ? 'RESERVATION RECEIVED' : 'PAYMENT DETAILS'}</h2></div>
           <button type="button" aria-label="Close checkout" onClick={onClose} disabled={busy}><Icon>close</Icon></button>
         </div>
         {receipt ? (
@@ -222,34 +223,61 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
             <p className="form-notice">Your student details will be stored in the POINTERS store database for order fulfilment and will only be visible to authorized store admins.</p>
             <div className="form-grid">
               <label>FULL NAME *<input name="name" autoComplete="name" maxLength="120" required /></label>
-              <label>UNIVERSITY ID NUMBER *<input name="studentId" maxLength="40" required /></label>
+              <label>COLLEGE *<input name="college" maxLength="120" required /></label>
               <label>EMAIL ADDRESS *<input name="email" type="email" autoComplete="email" maxLength="254" required /></label>
               <label>CONTACT NUMBER *<input name="phone" type="tel" autoComplete="tel" maxLength="40" required /></label>
-              <label className="form-full">COLLEGE / PROGRAM &amp; YEAR *
-                <select name="program" required defaultValue="">
-                  <option value="" disabled>Select your program</option>
-                  {['BS Computer Science', 'BS Information Technology', 'CICS Alumni', 'CICS Faculty / Laboratory Staff'].map((course) => <option key={course}>{course}</option>)}
+              <label className="form-full">PROGRAM / AFFILIATION *
+                <select
+                  name="programSelection"
+                  required
+                  value={programSelection}
+                  onChange={(event) => setProgramSelection(event.target.value)}
+                >
+                  <option value="" disabled>Select your program or affiliation</option>
+                  <option value="BS Computer Science">BS Computer Science</option>
+                  <option value="CICS Faculty / Staff">CICS Faculty / Staff</option>
+                  <option value="CICS Alumni">CICS Alumni</option>
+                  <option value="Others">Others</option>
                 </select>
               </label>
+              {programSelection === 'Others' && (
+                <label className="form-full">SPECIFY PROGRAM / AFFILIATION *
+                  <input name="otherProgram" maxLength="120" required />
+                </label>
+              )}
             </div>
             <fieldset className="payment-options"><legend>PAYMENT SETTLEMENT CHANNEL *</legend>
               <label><input type="radio" name="payment" value="GCash" checked={paymentMethod === 'GCash'} onChange={(event) => setPaymentMethod(event.target.value)} /> GCASH <small>Scan the QR or send to the number below</small></label>
               <label><input type="radio" name="payment" value="Cash over the counter" checked={paymentMethod === 'Cash over the counter'} onChange={(event) => setPaymentMethod(event.target.value)} /> CASH OVER THE COUNTER <small>Pay in person</small></label>
             </fieldset>
             {paymentMethod === 'GCash' && (
-              <div className="gcash-payment-details">
-                <div>
-                  <b>GCASH PAYMENT DETAILS</b>
-                  <span>Account name: R.H.A</span>
-                  <span>GCash number: +639641120052</span>
-                  <p>Scan this QR code to pay with GCash.</p>
+              <>
+                <div className="gcash-payment-details">
+                  <div>
+                    <b>GCASH PAYMENT DETAILS</b>
+                    <span>Account name: R.H.A</span>
+                    <span>GCash number: +639641120052</span>
+                    <p>Scan this QR code to pay with GCash.</p>
+                  </div>
+                  <img src={productImages.qr} alt="GCash QR code for R.H.A" />
                 </div>
-                <img src={productImages.qr} alt="GCash QR code for R.H.A" />
-              </div>
+                <label className="payment-proof-field">UPLOAD GCASH PAYMENT RECEIPT *
+                  <input
+                    name="paymentReceipt"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
+                    required
+                  />
+                  <small>Accepted: JPG, PNG, WebP, or PDF · Maximum 5 MB</small>
+                </label>
+              </>
             )}
             <div className="payment-summary"><span>ESTIMATED TOTAL</span><b>{money(total)}</b></div>
             {error && <p className="form-error" role="alert">{error}</p>}
-            <button className="button-primary confirm-button" type="submit" disabled={busy}>{busy ? 'SAVING RESERVATION…' : 'CONFIRM PRE-ORDER'} <Icon>arrow_forward</Icon></button>
+            <button className="button-primary confirm-button" type="submit" disabled={busy}>
+              {busy ? paymentMethod === 'GCash' ? 'UPLOADING RECEIPT & SAVING…' : 'SAVING RESERVATION…' : 'CONFIRM PRE-ORDER'}
+              <Icon>arrow_forward</Icon>
+            </button>
           </form>
         )}
       </section>
@@ -356,12 +384,52 @@ function App() {
     setCheckoutBusy(true)
     setCheckoutError('')
     const formData = new FormData(event.currentTarget)
+    const paymentMethod = formData.get('payment')
+    const receipt = formData.get('paymentReceipt')
+    const college = String(formData.get('college') ?? '').trim()
+    const programSelection = String(formData.get('programSelection') ?? '')
+    const otherProgram = String(formData.get('otherProgram') ?? '').trim()
+    const program = programSelection === 'Others' ? otherProgram : programSelection
+    let paymentReceiptPath = null
+
+    if (programSelection === 'Others' && !otherProgram) {
+      setCheckoutError('Please specify your program or affiliation.')
+      setCheckoutBusy(false)
+      return
+    }
+
+    if (paymentMethod === 'GCash') {
+      if (!(receipt instanceof File) || receipt.size === 0) {
+        setCheckoutError('Upload your GCash payment receipt before confirming the pre-order.')
+        setCheckoutBusy(false)
+        return
+      }
+      if (receipt.size > 5 * 1024 * 1024) {
+        setCheckoutError('The payment receipt must be 5 MB or smaller.')
+        setCheckoutBusy(false)
+        return
+      }
+      const receiptExtensions = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'application/pdf': 'pdf',
+      }
+      const extension = receiptExtensions[receipt.type]
+      if (!extension) {
+        setCheckoutError('Upload the payment receipt as a JPG, PNG, WebP, or PDF file.')
+        setCheckoutBusy(false)
+        return
+      }
+      paymentReceiptPath = `${crypto.randomUUID()}/payment-proof.${extension}`
+    }
+
     const customer = {
       name: formData.get('name'),
-      studentId: formData.get('studentId'),
+      college,
       email: formData.get('email'),
       phone: formData.get('phone'),
-      program: formData.get('program'),
+      program,
     }
     const items = cart.map((item) => ({
       sku: item.sku,
@@ -371,14 +439,36 @@ function App() {
       components: item.components,
     }))
     try {
+      if (receipt instanceof File && paymentReceiptPath) {
+        const { error: uploadError } = await supabase.storage
+          .from('payment-proofs')
+          .upload(paymentReceiptPath, receipt, { contentType: receipt.type, upsert: false })
+        if (uploadError) {
+          setCheckoutError(`Could not upload the payment receipt: ${uploadError.message}`)
+          return
+        }
+      }
+
       const { data, error } = await supabase.rpc('create_store_order', {
         p_customer: customer,
-        p_payment_method: formData.get('payment'),
+        p_payment_method: paymentMethod,
         p_discount_requested: false,
         p_items: items,
+        p_payment_receipt_path: paymentReceiptPath,
       })
       if (error) {
-        setCheckoutError(`The order was not submitted: ${error.message}`)
+        if (paymentReceiptPath) {
+          const { error: cleanupError } = await supabase.storage
+            .from('payment-proofs')
+            .remove([paymentReceiptPath])
+          setCheckoutError(
+            cleanupError
+              ? `The order was not submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError.message}`
+              : `The order was not submitted: ${error.message}`,
+          )
+        } else {
+          setCheckoutError(`The order was not submitted: ${error.message}`)
+        }
       } else {
         setReceipt(data)
         setCart([])

@@ -64,11 +64,8 @@ function ProductCard({ product, catalog, addToCart }) {
     })),
   )
   const design = designs.find((item) => item.name === selectedDesign) ?? designs[0]
-  const image = design?.imagePath
-    ? productImages[design.imagePath]
-    : product.type === 'bundle'
-      ? productImages['pointers cover page']
-      : null
+const image = productImages[design?.imagePath] 
+  || (product.type === 'bundle' ? productImages['pointers cover page'] : null)
   const selectedBundleComponents = product.type === 'bundle'
     ? (product.bundleItems ?? []).map((component) => {
       const includedProduct = catalog.find((item) => item.sku === component.sku)
@@ -163,7 +160,7 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
   return (
     <aside className="cart-column" id="cart">
       <div className="cart-panel">
-        <div className="cart-heading"><span><Icon>terminal</Icon> LEDGER // 0xPTR_CART</span><b>{count} {count === 1 ? 'ITEM' : 'ITEMS'}</b></div>
+        <div className="cart-heading"><span><Icon>terminal</Icon> LEDGER</span><b>{count} {count === 1 ? 'ITEM' : 'ITEMS'}</b></div>
         <div className="cart-items">
           {cart.length === 0 ? <div className="cart-empty">[LEDGER_EMPTY]<br />NO SPECIFICATIONS ALLOCATED YET.</div> : cart.map((item) => (
             <div className="cart-item" key={`${item.sku}-${item.variant}-${item.size}`}>
@@ -408,7 +405,7 @@ function App() {
         </section>
 
         <section className="bundle-section" id="bundle-guide">
-          <div className="section-kicker"><span>OFFICIAL BUNDLE PRICES</span><span>SOURCE // DCS-PRICELIST.XLSX</span></div>
+          <div className="section-kicker"><span>OFFICIAL BUNDLE PRICES</span></div>
           <div className="bundle-price-grid">
             {products.filter((product) => product.type === 'bundle').map((bundle) => (
               <a className="bundle-price-card" href="#catalog" key={bundle.sku} onClick={() => setActiveCategory('bundles')}>
@@ -451,8 +448,20 @@ function App() {
         <FaqSection />
       </main>
       <footer className="site-footer">
-        <a className="brand" href="#top"><span className="brand-mark"><img src={productImages.logo} alt="" /></span><span className="brand-copy"><span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span><span 
-        className="brand-subtitle">MSU-MARAWI CICS · RELEASE 01/26</span></span></a><p>Student-run merchandise store · For order assistance, contact the POINTERS CICS committee.</p><a href="?admin=1">ADMIN</a><a href="#top">BACK TO TOP ↑</a></footer>
+        <a className="brand" href="#top">
+          <span className="brand-mark"><img src={productImages.logo} alt="" /></span>
+          <span className="brand-copy">
+            <span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span>
+            <span className="brand-subtitle">MSU-MARAWI CICS · RELEASE 01/26</span>
+          </span>
+        </a>
+        <p>Student-run merchandise store · For order assistance, contact the POINTERS CICS committee.</p>
+        
+        {/* Idagdag ang <a href="#faq">FAQ</a> dito: */}
+        <a href="#faq">FAQ</a>
+        <a href="?admin=1">ADMIN</a>
+        <a href="#top">BACK TO TOP ↑</a>
+      </footer>
       <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} total={total} onSubmit={submitCheckout} receipt={receipt} busy={checkoutBusy} error={checkoutError} />
     </>
   )

@@ -29,13 +29,11 @@ const keychainsDesigns = [
 const stickersDesigns = [
   { name: 'Sticker', label: 'Sticker · Tech Vinyl', imagePath: 'Stickers' },
 ]
-
-const bundleDesigns = [
-  { name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA.jpeg' },
-  { name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB.png' },
-  { name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC.png' },
-  { name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD.png' },
-]
+// TAMA (walang extension at hiwalay sa bawat bundle):
+const bundleADesigns = [{ name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA' }]
+const bundleBDesigns = [{ name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB' }]
+const bundleCDesigns = [{ name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC' }]
+const bundleDDesigns = [{ name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD' }]
 const bundleComponents = {
   'PTR-BNDL-A': [
     { sku: 'PTR-TEE-01', label: 'T-shirt' },
@@ -139,7 +137,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt, lanyard, pin, keychain, and stickers. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-A'],
   // <-- Dito ilagay ang pangalan ng iisang image file mo (halimbawa: Bundle_Set_A)
-    designs: bundleDesigns,
+    designs: bundleADesigns,
     sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
@@ -154,7 +152,7 @@ export const PRODUCT_FALLBACK = [
     meta: '3-PIECE BUNDLE',
     description: 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-B'],
-    designs: bundleDesigns,
+    designs: bundleBDesigns,
     sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
@@ -169,7 +167,7 @@ export const PRODUCT_FALLBACK = [
     meta: '3-PIECE BUNDLE',
     description: 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-C'],
-    designs: bundleDesigns,
+    designs: bundleCDesigns,
     sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
@@ -184,7 +182,7 @@ export const PRODUCT_FALLBACK = [
     meta: '2-PIECE BUNDLE',
     description: 'T-shirt and lanyard. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-D'],
-    designs: bundleDesigns,
+    designs: bundleDDesigns,
     sizes: ['S', 'M', 'L', 'XL'],
     discountEligible: false,
   },
@@ -192,6 +190,8 @@ export const PRODUCT_FALLBACK = [
 
 export function normalizeCatalog(products, variants) {
   const productOrder = new Map(PRODUCT_FALLBACK.map((product, index) => [product.sku, index]))
+  const fallbackMap = new Map(PRODUCT_FALLBACK.map((product) => [product.sku, product]))
+  
   const variantsBySku = new Map()
   for (const variant of variants) {
     if (!variantsBySku.has(variant.product_sku)) variantsBySku.set(variant.product_sku, [])
@@ -206,19 +206,25 @@ export function normalizeCatalog(products, variants) {
     .sort((first, second) =>
       (productOrder.get(first.sku) ?? Number.MAX_SAFE_INTEGER)
       - (productOrder.get(second.sku) ?? Number.MAX_SAFE_INTEGER))
-    .map((product) => ({
-    sku: product.sku,
-    name: product.name,
-    shortName: product.short_name,
-    category: product.category,
-    type: product.product_type,
-    price: Number(product.price),
-    compareAtPrice: Number(product.compare_at_price ?? product.price),
-    meta: product.meta,
-    description: product.description,
-    sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
-    bundleItems: product.bundle_items ?? [],
-    designs: variantsBySku.get(product.sku) ?? [],
-    discountEligible: product.discount_eligible,
-    }))
+    .map((product) => {
+      const fallbackItem = fallbackMap.get(product.sku)
+      const dbVariants = variantsBySku.get(product.sku) ?? []
+
+      return {
+        sku: product.sku,
+        name: product.name,
+        shortName: product.short_name,
+        category: product.category,
+        type: product.product_type,
+        price: Number(product.price),
+        compareAtPrice: Number(product.compare_at_price ?? product.price),
+        meta: product.meta,
+        description: product.description,
+        sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
+        bundleItems: product.bundle_items ?? [],
+        // Gamitin ang DB variants kung mayroon, kung wala ay babalik sa local designs
+        designs: dbVariants.length > 0 ? dbVariants : (fallbackItem?.designs ?? []),
+        discountEligible: product.discount_eligible,
+      }
+    })
 }

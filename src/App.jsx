@@ -195,6 +195,7 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
 }
 
 function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error }) {
+  const [paymentMethod, setPaymentMethod] = useState('GCash')
   if (!isOpen) return null
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
@@ -232,10 +233,20 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
               </label>
             </div>
             <fieldset className="payment-options"><legend>PAYMENT SETTLEMENT CHANNEL *</legend>
-              <label><input type="radio" name="payment" value="GCash" defaultChecked /> GCASH <small>Instant digital</small></label>
-              <label><input type="radio" name="payment" value="Maya" /> MAYA <small>Digital wallet</small></label>
-              <label><input type="radio" name="payment" value="Cash" /> CASH <small>Over-the-counter</small></label>
+              <label><input type="radio" name="payment" value="GCash" checked={paymentMethod === 'GCash'} onChange={(event) => setPaymentMethod(event.target.value)} /> GCASH <small>Scan the QR or send to the number below</small></label>
+              <label><input type="radio" name="payment" value="Cash over the counter" checked={paymentMethod === 'Cash over the counter'} onChange={(event) => setPaymentMethod(event.target.value)} /> CASH OVER THE COUNTER <small>Pay in person</small></label>
             </fieldset>
+            {paymentMethod === 'GCash' && (
+              <div className="gcash-payment-details">
+                <div>
+                  <b>GCASH PAYMENT DETAILS</b>
+                  <span>Account name: R.H.A</span>
+                  <span>GCash number: +639641120052</span>
+                  <p>Scan this QR code to pay with GCash.</p>
+                </div>
+                <img src={productImages.qr} alt="GCash QR code for R.H.A" />
+              </div>
+            )}
             <div className="payment-summary"><span>ESTIMATED TOTAL</span><b>{money(total)}</b></div>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="button-primary confirm-button" type="submit" disabled={busy}>{busy ? 'SAVING RESERVATION…' : 'CONFIRM PRE-ORDER'} <Icon>arrow_forward</Icon></button>
@@ -437,10 +448,10 @@ function App() {
           <div className="sizing-heading"><span className="eyebrow">PRECISION MATRIX // HARDWARE FIT</span><h2>APPAREL SIZING SPECIFICATIONS</h2><p>Each heavyweight tee is tailored for a relaxed streetwear fit. Compare the measurements against a shirt that fits you well.</p></div>
           <div className="table-wrap"><table><thead><tr><th>SIZE TAG</th><th>CHEST WIDTH</th><th>BODY LENGTH</th><th>SHOULDER SPAN</th><th>HEIGHT GUIDE</th></tr></thead><tbody>
             {[
-              ['S // 0xSMALL', '20 in / 50.8 cm', '27 in / 68.5 cm', '19 in / 48.2 cm', '5′0″–5′4″'],
-              ['M // 0xMEDIUM', '21 in / 53.3 cm', '28 in / 71.1 cm', '20 in / 50.8 cm', '5′4″–5′8″'],
-              ['L // 0xLARGE', '22 in / 55.9 cm', '29 in / 73.7 cm', '21 in / 53.3 cm', '5′8″–5′11″'],
-              ['XL // 0xX-LARGE', '23 in / 58.4 cm', '30 in / 76.2 cm', '22 in / 55.9 cm', '5′11″–6′2″'],
+              ['S-SMALL', '20 in / 50.8 cm', '27 in / 68.5 cm', '19 in / 48.2 cm', '5′0″–5′4″'],
+              ['M-MEDIUM', '21 in / 53.3 cm', '28 in / 71.1 cm', '20 in / 50.8 cm', '5′4″–5′8″'],
+              ['L-LARGE', '22 in / 55.9 cm', '29 in / 73.7 cm', '21 in / 53.3 cm', '5′8″–5′11″'],
+              ['XL-X-LARGE', '23 in / 58.4 cm', '30 in / 76.2 cm', '22 in / 55.9 cm', '5′11″–6′2″'],
             ].map((row) => <tr key={row[0]}>{row.map((cell) => <td key={cell}>{cell}</td>)}</tr>)}
           </tbody></table></div>
           <p className="table-note">Measurements are approximate. For a looser fit, consider choosing one size up.</p>

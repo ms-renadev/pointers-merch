@@ -243,11 +243,16 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .form-grid label { display: grid; gap: 6px; color: var(--muted); font: 9px var(--mono); }
 .form-grid .form-full { grid-column: 1 / -1; }
 .form-grid input, .form-grid select { width: 100%; min-height: 38px; padding: 8px; border: 1px solid #d4ced1; border-radius: 0; color: var(--ink); background: white; font: 11px 'Plus Jakarta Sans', sans-serif; }
-.payment-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin: 0; padding: 0; border: 0; }
+.payment-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin: 0; padding: 0; border: 0; }
 .payment-options legend { margin-bottom: 7px; color: var(--muted); font: 9px var(--mono); }
 .payment-options label { min-height: 65px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; padding: 8px; background: var(--panel); font: 600 10px var(--mono); cursor: pointer; }
 .payment-options input { margin: 0 0 2px; accent-color: var(--pink); }
 .payment-options small { color: var(--muted); font: 8px 'Plus Jakarta Sans', sans-serif; }
+.gcash-payment-details { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px; border: 1px solid #d4ced1; background: white; }
+.gcash-payment-details > div { display: grid; gap: 5px; color: var(--ink); font-size: 11px; }
+.gcash-payment-details > div > b { margin-bottom: 3px; color: var(--pink); font: 600 9px var(--mono); }
+.gcash-payment-details p { margin: 3px 0 0; color: var(--muted); font-size: 10px; }
+.gcash-payment-details img { width: 176px; height: 174px; flex: 0 0 auto; object-fit: contain; image-rendering: pixelated; }
 .payment-summary { display: flex; justify-content: space-between; padding: 12px; background: var(--panel); color: var(--muted); font: 9px var(--mono); }
 .payment-summary b { color: var(--pink); font: 700 17px var(--display); }
 .confirm-button { width: 100%; }
@@ -355,6 +360,8 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
   .form-grid .form-full { grid-column: auto; }
   .payment-options { grid-template-columns: 1fr; }
   .payment-options label { min-height: 44px; flex-direction: row; }
+  .gcash-payment-details { gap: 10px; padding: 10px; }
+  .gcash-payment-details img { width: 128px; height: 128px; }
 }
 @media print {
   body * { visibility: hidden !important; }

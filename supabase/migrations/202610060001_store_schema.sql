@@ -44,7 +44,7 @@ create table if not exists public.store_orders (
   email text not null,
   phone text not null,
   program text not null,
-  payment_method text not null check (payment_method in ('GCash', 'Maya', 'Cash')),
+  payment_method text not null check (payment_method in ('GCash', 'Cash over the counter')),
   subtotal numeric(10, 2) not null check (subtotal >= 0),
   discount_amount numeric(10, 2) not null default 0 check (discount_amount >= 0),
   total numeric(10, 2) not null check (total >= 0),
@@ -229,7 +229,7 @@ begin
     raise exception 'Please provide valid student details.' using errcode = '22023';
   end if;
 
-  if v_payment is null or v_payment not in ('GCash', 'Maya', 'Cash') then
+  if v_payment is null or v_payment not in ('GCash', 'Cash over the counter') then
     raise exception 'Invalid payment method.' using errcode = '22023';
   end if;
 

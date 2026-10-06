@@ -23,17 +23,22 @@ The browser key is a publishable key protected by the database policies. Never p
 1. Open the project's Supabase Dashboard and select **SQL Editor**.
 2. For a fresh database, run [`supabase/migrations/202610060001_store_schema.sql`](./supabase/migrations/202610060001_store_schema.sql).
 3. If `store_products` already exists but is missing catalog columns or `store_product_variants`, first run [`supabase/migrations/202610060002_catalog_sort_order.sql`](./supabase/migrations/202610060002_catalog_sort_order.sql), then run `202610060001_store_schema.sql` to finish setting up order submission and admin access. The repair migration seeds catalog designs without changing existing orders.
-4. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
-5. In **Authentication → Users**, create an admin account. Copy its user UUID and run this in SQL Editor:
+4. Run [`supabase/migrations/202610060003_payment_methods.sql`](./supabase/migrations/202610060003_payment_methods.sql) to allow only GCash and cash over the counter for new reservations.
+5. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
+6. In **Authentication → Users**, create an admin account. Copy its user UUID and run this in SQL Editor:
 
    ```sql
    insert into public.store_admins (user_id)
    values ('PASTE-AUTH-USER-UUID-HERE');
    ```
 
-6. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with that Supabase Auth account to view orders or change order status.
+7. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with that Supabase Auth account to view orders or change order status.
 
 If the database is not configured or the migration has not been run, the storefront uses the spreadsheet-based fallback catalog. It does not display a successful order receipt unless the reservation is actually saved.
+
+## Payment options
+
+Customers can choose GCash or cash over the counter. Selecting GCash displays the supplied QR code and account details (R.H.A · +639641120052). Cash over the counter is paid in person.
 
 ## Spreadsheet prices
 

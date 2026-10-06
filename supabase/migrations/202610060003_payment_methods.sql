@@ -229,11 +229,13 @@ begin
   for v_line in select value from jsonb_array_elements(v_validated_items)
   loop
     insert into public.store_order_items (
-      order_id, product_sku, product_name, design_name, size, quantity, unit_price, line_total, selections
+      order_id, product_sku, product_name, price, variant, design_name, size, quantity, unit_price, line_total, selections
     ) values (
       v_order_id,
       v_line->>'sku',
       v_line->>'name',
+      (v_line->>'unit_price')::numeric,
+      v_line->>'design',
       v_line->>'design',
       v_line->>'size',
       (v_line->>'quantity')::integer,

@@ -269,6 +269,12 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .receipt-details span { color: var(--muted); }
 .receipt-details b { text-align: right; }
 .receipt-details div:first-child b { color: var(--pink); }
+.receipt-items { max-width: 490px; margin: 0 auto 19px; text-align: left; }
+.receipt-items h4 { margin: 0 0 8px; color: var(--muted); font: 9px var(--mono); }
+.receipt-item { display: flex; justify-content: space-between; gap: 14px; padding: 10px 0; border-top: 1px solid #e6e1e3; font: 10px var(--mono); }
+.receipt-item > span { display: grid; gap: 4px; }
+.receipt-item small { color: var(--muted); font: 9px 'Plus Jakarta Sans', sans-serif; }
+.receipt-item > b { flex-shrink: 0; }
 .receipt-actions { display: flex; justify-content: center; flex-wrap: wrap; gap: 9px; }
 .button-secondary { min-height: 43px; padding: 10px 15px; border: 0; color: var(--ink); background: var(--panel-strong); font: 600 9px var(--mono); }
 

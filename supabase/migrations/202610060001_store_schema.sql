@@ -58,6 +58,8 @@ create table if not exists public.store_order_items (
   order_id uuid not null references public.store_orders(id) on delete cascade,
   product_sku text not null references public.store_products(sku) on delete restrict,
   product_name text not null,
+  price numeric(10, 2) not null check (price >= 0),
+  variant text not null,
   design_name text not null,
   size text,
   quantity integer not null check (quantity between 1 and 20),
@@ -391,11 +393,13 @@ begin
   for v_line in select value from jsonb_array_elements(v_validated_items)
   loop
     insert into public.store_order_items (
-      order_id, product_sku, product_name, design_name, size, quantity, unit_price, line_total, selections
+      order_id, product_sku, product_name, price, variant, design_name, size, quantity, unit_price, line_total, selections
     ) values (
       v_order_id,
       v_line->>'sku',
       v_line->>'name',
+      (v_line->>'unit_price')::numeric,
+      v_line->>'design',
       v_line->>'design',
       v_line->>'size',
       (v_line->>'quantity')::integer,

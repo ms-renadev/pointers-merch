@@ -198,6 +198,35 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
   const [paymentMethod, setPaymentMethod] = useState('GCash')
   const [programSelection, setProgramSelection] = useState('')
   if (!isOpen) return null
+
+  function downloadOrderSummary() {
+    const rows = [
+      'POINTERS OFFICIAL STORE — ORDER SUMMARY',
+      `Order reference: ${receipt.reference_code}`,
+      `Payment method: ${receipt.payment_method}`,
+      '',
+      'ITEMS',
+      ...receipt.items.flatMap((item) => [
+        `${item.product_name} — ${item.quantity} × ${money(Number(item.unit_price))} = ${money(Number(item.line_total))}`,
+        `  Design: ${item.design_name}${item.size ? ` · Size ${item.size}` : ''}`,
+        ...(item.selections?.length
+          ? [`  Bundle selections: ${item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}`]
+          : []),
+      ]),
+      '',
+      `Subtotal: ${money(Number(receipt.subtotal))}`,
+      `Total: ${money(Number(receipt.total))}`,
+      `Payment status: ${receipt.payment_method === 'GCash' ? 'Receipt submitted — pending verification' : 'Pay over the counter'}`,
+    ]
+    const file = new Blob([rows.join('\n')], { type: 'text/plain;charset=utf-8' })
+    const url = URL.createObjectURL(file)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `POINTERS-${receipt.reference_code}-order-summary.txt`
+    link.click()
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  }
+
   return (
     <div className="modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget && !busy) onClose() }}>
       <section className="checkout-modal" role="dialog" aria-modal="true" aria-labelledby="checkout-title">
@@ -210,13 +239,35 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
             <span className="receipt-mark"><Icon>check</Icon></span>
             <p className="eyebrow">ORDER SAVED // PENDING REVIEW</p>
             <h3>Reservation received</h3>
-            <p>Your order was saved to the POINTERS store database. Payment is not collected by this page; follow the committee's payment and claim instructions.</p>
+            <p>Your order and itemized price summary were saved to the POINTERS store database. Keep this summary for your records.</p>
             <div className="receipt-details">
               <div><span>CLAIM REF:</span><b>{receipt.reference_code}</b></div>
-              <div><span>PAYMENT STATUS:</span><b>PENDING</b></div>
+              <div><span>PAYMENT METHOD:</span><b>{receipt.payment_method}</b></div>
+              <div><span>PAYMENT STATUS:</span><b>{receipt.payment_method === 'GCash' ? 'RECEIPT SUBMITTED · PENDING VERIFICATION' : 'PAY OVER THE COUNTER'}</b></div>
+              <div><span>SUBTOTAL:</span><b>{money(Number(receipt.subtotal))}</b></div>
               <div><span>ESTIMATED TOTAL:</span><b>{money(Number(receipt.total))}</b></div>
             </div>
-            <div className="receipt-actions"><button className="button-primary" type="button" onClick={() => window.print()}>PRINT CLAIM SLIP</button><button className="button-secondary" type="button" onClick={onClose}>RETURN TO STORE</button></div>
+            <div className="receipt-items">
+              <h4>ITEMIZED ORDER</h4>
+              {receipt.items.map((item, index) => (
+                <div className="receipt-item" key={`${item.product_sku}-${index}`}>
+                  <span>
+                    <b>{item.quantity} × {item.product_name}</b>
+                    <small>{item.design_name}{item.size ? ` · Size ${item.size}` : ''}</small>
+                    {item.selections?.length > 0 && (
+                      <small>{item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}</small>
+                    )}
+                    <small>{money(Number(item.unit_price))} each</small>
+                  </span>
+                  <b>{money(Number(item.line_total))}</b>
+                </div>
+              ))}
+            </div>
+            <div className="receipt-actions">
+              <button className="button-primary" type="button" onClick={downloadOrderSummary}>DOWNLOAD ORDER SUMMARY</button>
+              <button className="button-secondary" type="button" onClick={() => window.print()}>PRINT / SAVE AS PDF</button>
+              <button className="button-secondary" type="button" onClick={onClose}>RETURN TO STORE</button>
+            </div>
           </div>
         ) : (
           <form className="checkout-form" onSubmit={onSubmit}>
@@ -391,6 +442,7 @@ function App() {
     const otherProgram = String(formData.get('otherProgram') ?? '').trim()
     const program = programSelection === 'Others' ? otherProgram : programSelection
     let paymentReceiptPath = null
+    let paymentReceiptUploaded = false
 
     if (programSelection === 'Others' && !otherProgram) {
       setCheckoutError('Please specify your program or affiliation.')
@@ -424,6 +476,20 @@ function App() {
       paymentReceiptPath = `${crypto.randomUUID()}/payment-proof.${extension}`
     }
 
+    async function cleanupUploadedReceipt() {
+      if (!paymentReceiptUploaded || !paymentReceiptPath) return null
+      try {
+        const { error } = await supabase.storage
+          .from('payment-proofs')
+          .remove([paymentReceiptPath])
+        if (error) return error.message
+        paymentReceiptUploaded = false
+        return null
+      } catch (error) {
+        return error.message
+      }
+    }
+
     const customer = {
       name: formData.get('name'),
       college,
@@ -447,6 +513,7 @@ function App() {
           setCheckoutError(`Could not upload the payment receipt: ${uploadError.message}`)
           return
         }
+        paymentReceiptUploaded = true
       }
 
       const { data, error } = await supabase.rpc('create_store_order', {
@@ -457,24 +524,49 @@ function App() {
         p_payment_receipt_path: paymentReceiptPath,
       })
       if (error) {
-        if (paymentReceiptPath) {
-          const { error: cleanupError } = await supabase.storage
-            .from('payment-proofs')
-            .remove([paymentReceiptPath])
+        if (paymentReceiptUploaded) {
+          const cleanupError = await cleanupUploadedReceipt()
           setCheckoutError(
             cleanupError
-              ? `The order was not submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError.message}`
+              ? `The order was not submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError}`
               : `The order was not submitted: ${error.message}`,
           )
         } else {
           setCheckoutError(`The order was not submitted: ${error.message}`)
         }
       } else {
-        setReceipt(data)
+        const savedItems = Array.isArray(data.items) && data.items.length
+          ? data.items
+          : cart.map((item) => ({
+            product_sku: item.sku,
+            product_name: item.title,
+            design_name: item.variant,
+            size: item.size,
+            quantity: item.qty,
+            unit_price: item.price,
+            line_total: item.price * item.qty,
+            selections: item.components,
+          }))
+        setReceipt({
+          ...data,
+          items: savedItems,
+          payment_method: data.payment_method ?? paymentMethod,
+          subtotal: data.subtotal ?? total,
+          total: data.total ?? total,
+        })
         setCart([])
       }
     } catch (error) {
-      setCheckoutError(`The order could not be submitted: ${error.message}`)
+      if (paymentReceiptUploaded && paymentReceiptPath) {
+        const cleanupError = await cleanupUploadedReceipt()
+        setCheckoutError(
+          cleanupError
+            ? `The order could not be submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError}`
+            : `The order could not be submitted: ${error.message}`,
+        )
+      } else {
+        setCheckoutError(`The order could not be submitted: ${error.message}`)
+      }
     } finally {
       setCheckoutBusy(false)
     }

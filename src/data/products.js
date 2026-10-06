@@ -1,112 +1,212 @@
-export const PRODUCTS = [
-  // INDIVIDUAL ITEMS
-  {
-    id: 'pointers-tshirt',
-    name: 'POINTERS Org Tee',
-    category: 'Apparel',
-    price: 349, // Updated from pricelist
-    description: '100% combed cotton classic shirt featuring official CICS-POINTERS design.',
-    tag: 'Popular',
-    image: 'https://images.unsplash.com/photo-1521572267360-ee0c2909d518?auto=format&fit=crop&w=800&q=80',
-    availableSizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
-    isBundle: false,
-  },
-  {
-    id: 'pointers-lanyard',
-    name: 'POINTERS Sublimated Lanyard',
-    category: 'Accessories',
-    price: 100, // Updated from pricelist
-    description: 'High-quality satin lanyard with quick-release side buckle and metal hook.',
-    tag: 'Essential',
-    image: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    availableSizes: ['Standard'],
-    isBundle: false,
-  },
-  {
-    id: 'pointers-pin',
-    name: 'POINTERS Button Pin',
-    category: 'Accessories',
-    price: 35, // Updated from pricelist
-    description: 'Durable pinback button badge perfect for bags, lanyards, and jackets.',
-    tag: 'Popular',
-    image: 'https://images.unsplash.com/photo-1588850561407-ed78c282e89b?auto=format&fit=crop&w=800&q=80',
-    availableSizes: ['One Size'],
-    isBundle: false,
-  },
-  {
-    id: 'pointers-keychain',
-    name: 'POINTERS Acrylic Keychain',
-    category: 'Accessories',
-    price: 15, // Updated from pricelist
-    description: 'Custom acrylic keychain featuring the official POINTERS logo.',
-    tag: 'Popular',
-    image: 'https://images.unsplash.com/photo-1622560480605-d83c853bc5c3?auto=format&fit=crop&w=800&q=80',
-    availableSizes: ['One Size'],
-    isBundle: false,
-  },
-  {
-    id: 'pointers-sticker',
-    name: 'POINTERS Sticker',
-    category: 'Accessories',
-    price: 15, // Updated from pricelist
-    description: 'Waterproof vinyl sticker set featuring CS memes and POINTERS branding.',
-    tag: 'New',
-    image: 'https://images.unsplash.com/photo-1572375992501-4b0892d50c69?auto=format&fit=crop&w=800&q=80',
-    availableSizes: ['One Size'],
-    isBundle: false,
-  },
+const teeDesigns = [
+  { name: 'Version A', label: 'Version A · Magenta sleeves', imagePath: 'Tshirt_1' },
+  { name: 'Version B', label: 'Version B · Monochrome cream', imagePath: 'Tshirt_2' },
+  { name: 'Version C', label: 'Version C · Computer science student', imagePath: 'Tshirt_3' },
+  { name: 'Version D', label: 'Version D · No sleep, code, eat, repeat', imagePath: 'Tshirt_4' },
+]
 
-  // BUNDLES
+const lanyardDesigns = [
+  { name: 'Version A', label: 'Version A · Kompsay waves', imagePath: 'IDLace_2' },
+  { name: 'Version B', label: 'Version B · MSU cloud', imagePath: 'IDLace_1' },
+]
+
+const pinsDesigns = [
+  { name: 'Pin A', label: 'Pin A · Kompsyman', imagePath: 'pins' },
+  { name: 'Pin B', label: 'Pin B · Computer Science', imagePath: 'pins' },
+  { name: 'Pin C', label: 'Pin C · CICS Logo', imagePath: 'pins' },
+  { name: 'Pin D', label: 'Pin D · Iskolar ng Bayan at Teknolohiya', imagePath: 'pins' },
+]
+const keychainsDesigns = [
+  { name: 'V1', label: 'V1 · Crying Cat Typing Meme', imagePath: 'keychains' },
+  { name: 'V2', label: 'V2 · The Code Doesn\'t Work / Works Why?', imagePath: 'keychains' },
+  { name: 'V3', label: 'V3 · Studying Cat Drawing', imagePath: 'keychains' },
+  { name: 'V4', label: 'V4 · Frieren C++ Programming', imagePath: 'keychains' },
+  { name: 'V5', label: 'V5 · Progress Over Perfection', imagePath: 'keychains' },
+  { name: 'V6', label: 'V6 · Go Study!', imagePath: 'keychains' },
+  { name: 'V7', label: 'V7 · I Need To Pass Meme', imagePath: 'keychains' },
+]
+
+const stickersDesigns = [
+  { name: 'Sticker', label: 'Sticker · Tech Vinyl', imagePath: 'Stickers' },
+]
+
+const bundleComponents = {
+  'PTR-BNDL-A': [
+    { sku: 'PTR-TEE-01', label: 'T-shirt' },
+    { sku: 'PTR-LAN-02', label: 'Lanyard' },
+    { sku: 'PTR-PIN-04', label: 'Pin' },
+    { sku: 'PTR-KEY-03', label: 'Keychain' },
+    { sku: 'PTR-STK-05', label: 'Stickers pack' },
+  ],
+  'PTR-BNDL-B': [
+    { sku: 'PTR-TEE-01', label: 'T-shirt' },
+    { sku: 'PTR-LAN-02', label: 'Lanyard' },
+    { sku: 'PTR-PIN-04', label: 'Pin' },
+  ],
+  'PTR-BNDL-C': [
+    { sku: 'PTR-TEE-01', label: 'T-shirt' },
+    { sku: 'PTR-LAN-02', label: 'Lanyard' },
+    { sku: 'PTR-KEY-03', label: 'Keychain' },
+  ],
+  'PTR-BNDL-D': [
+    { sku: 'PTR-TEE-01', label: 'T-shirt' },
+    { sku: 'PTR-LAN-02', label: 'Lanyard' },
+  ],
+}
+
+export const PRODUCT_FALLBACK = [
   {
-    id: 'bundle-set-a',
-    name: 'Bundle Set A (Complete Pack)',
-    category: 'Bundles',
-    price: 499, // Original value: ₱514
-    originalPrice: 514,
-    description: 'The ultimate package: T-Shirt + Lanyard + Pin + Keychain + Sticker.',
-    tag: 'Best Value',
-    image: 'https://images.unsplash.com/photo-1556905055-8f358a7a47b2?auto=format&fit=crop&w=800&q=80',
-    items: ['T-Shirt', 'Lanyard', 'Pin', 'Keychain', 'Sticker'],
-    availableSizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
-    isBundle: true,
+    sku: 'PTR-TEE-01',
+    name: 'Official MSU-POINTERS T-Shirt',
+    shortName: 'Official MSU-POINTERS Graphic Tee',
+    category: 'apparel',
+    type: 'apparel',
+    price: 349,
+    compareAtPrice: 349,
+    meta: '240 GSM',
+    description: 'Made with cotton of a low-poly Dino and DCS back illustration.',
+    sizes: ['S', 'M', 'L', '2XL'],
+    designs: teeDesigns,
+    discountEligible: true,
   },
   {
-    id: 'bundle-set-b',
-    name: 'Bundle Set B (Tee + Lanyard + Pin)',
-    category: 'Bundles',
-    price: 449, // Original value: ₱484
-    originalPrice: 484,
-    description: 'Essential merch combo containing T-Shirt, Lanyard, and Pin.',
-    tag: 'Saver',
-    image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?auto=format&fit=crop&w=800&q=80',
-    items: ['T-Shirt', 'Lanyard', 'Pin'],
-    availableSizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
-    isBundle: true,
+    sku: 'PTR-LAN-02',
+    name: 'MSU-POINTERS Lanyard',
+    shortName: 'MSU-POINTERS Woven Lanyard',
+    category: 'wearables',
+    type: 'wearable',
+    price: 100,
+    compareAtPrice: 100,
+    meta: '1 INCH WIDTH',
+    description: 'Flex your CS pride everyday! High-quality woven POINTERS lanyard with heavy-duty metal clip and side-release buckle.',
+    designs: lanyardDesigns,
+    discountEligible: true,
   },
   {
-    id: 'bundle-set-c',
-    name: 'Bundle Set C (Tee + Lanyard + Keychain)',
-    category: 'Bundles',
-    price: 429, // Original value: ₱464
-    originalPrice: 464,
-    description: 'Daily tech combo including T-Shirt, Lanyard, and Keychain.',
-    tag: 'Popular',
-    image: 'https://images.unsplash.com/photo-1503342217505-b0a15ec3261c?auto=format&fit=crop&w=800&q=80',
-    items: ['T-Shirt', 'Lanyard', 'Keychain'],
-    availableSizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
-    isBundle: true,
+    sku: 'PTR-PIN-04',
+    name: 'Button Badges (44mm)',
+    shortName: 'Button Badge (44mm)',
+    category: 'accessories',
+    type: 'accessory',
+    price: 35,
+    compareAtPrice: 35,
+    meta: '44MM · VELVET MATTE',
+    description: 'Scratch-resistant velvet-touch finish with rust-proof safety-pin backing.',
+    designs:pinsDesigns,
+    discountEligible: true,
   },
   {
-    id: 'bundle-set-d',
-    name: 'Bundle Set D (Tee + Lanyard)',
-    category: 'Bundles',
-    price: 419, // Original value: ₱449
-    originalPrice: 449,
-    description: 'Starter duo pack featuring T-Shirt and Lanyard.',
-    tag: 'Starter',
-    image: 'https://images.unsplash.com/photo-1562157873-818bc0726f68?auto=format&fit=crop&w=800&q=80',
-    items: ['T-Shirt', 'Lanyard'],
-    availableSizes: ['XS', 'S', 'M', 'L', 'XL', '2XL'],
-    isBundle: true,
+    sku: 'PTR-KEY-03',
+    name: 'Acrylic Keychains',
+    shortName: 'Acrylic Keychain',
+    category: 'accessories',
+    type: 'accessory',
+    price: 15,
+    compareAtPrice: 15,
+    meta: '3MM ACRYLIC',
+    description: 'Clear acrylic frame keychain with custom inserted graphics and a durable stainless-steel keyring.',
+    designs: keychainsDesigns,
+    discountEligible: true,
   },
-];
+  {
+    sku: 'PTR-STK-05',
+    name: '5 Stickers Pack',
+    shortName: 'Tech Vinyl Decals',
+    category: 'accessories',
+    type: 'accessory',
+    price: 15,
+    compareAtPrice: 15,
+    meta: 'DIE-CUT VINYL',
+    description: 'High-quality printed sticker paper decals, perfect for notebooks, gadgets, and everyday campus use.',
+    designs: stickersDesigns,
+    discountEligible: true,
+  },
+  {
+    sku: 'PTR-BNDL-A',
+    name: 'Bundle Set A · Complete Pack',
+    shortName: 'Bundle Set A',
+    category: 'bundles',
+    type: 'bundle',
+    price: 499,
+    compareAtPrice: 514,
+    meta: '5-PIECE BUNDLE',
+    description: 'T-shirt, lanyard, pin, keychain, and stickers. Bundle price from the DCS price list.',
+    bundleItems: bundleComponents['PTR-BNDL-A'],
+    designs: [],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    discountEligible: false,
+  },
+  {
+    sku: 'PTR-BNDL-B',
+    name: 'Bundle Set B · Tee + Lanyard + Pins',
+    shortName: 'Bundle Set B',
+    category: 'bundles',
+    type: 'bundle',
+    price: 449,
+    compareAtPrice: 484,
+    meta: '3-PIECE BUNDLE',
+    description: 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.',
+    bundleItems: bundleComponents['PTR-BNDL-B'],
+    designs: [],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    discountEligible: false,
+  },
+  {
+    sku: 'PTR-BNDL-C',
+    name: 'Bundle Set C · Tee + Lanyard + Keychain',
+    shortName: 'Bundle Set C',
+    category: 'bundles',
+    type: 'bundle',
+    price: 429,
+    compareAtPrice: 464,
+    meta: '3-PIECE BUNDLE',
+    description: 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.',
+    bundleItems: bundleComponents['PTR-BNDL-C'],
+    designs: [],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    discountEligible: false,
+  },
+  {
+    sku: 'PTR-BNDL-D',
+    name: 'Bundle Set D · Tee + Lanyard',
+    shortName: 'Bundle Set D',
+    category: 'bundles',
+    type: 'bundle',
+    price: 419,
+    compareAtPrice: 449,
+    meta: '2-PIECE BUNDLE',
+    description: 'T-shirt and lanyard. Bundle price from the DCS price list.',
+    bundleItems: bundleComponents['PTR-BNDL-D'],
+    designs: [],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    discountEligible: false,
+  },
+]
+
+export function normalizeCatalog(products, variants) {
+  const variantsBySku = new Map()
+  for (const variant of variants) {
+    if (!variantsBySku.has(variant.product_sku)) variantsBySku.set(variant.product_sku, [])
+    variantsBySku.get(variant.product_sku).push({
+      name: variant.name,
+      label: variant.label,
+      imagePath: variant.image_path,
+    })
+  }
+
+  return products.map((product) => ({
+    sku: product.sku,
+    name: product.name,
+    shortName: product.short_name,
+    category: product.category,
+    type: product.product_type,
+    price: Number(product.price),
+    compareAtPrice: Number(product.compare_at_price ?? product.price),
+    meta: product.meta,
+    description: product.description,
+    sizes: product.sizes ?? [],
+    bundleItems: product.bundle_items ?? [],
+    designs: variantsBySku.get(product.sku) ?? [],
+    discountEligible: product.discount_eligible,
+  }))
+}

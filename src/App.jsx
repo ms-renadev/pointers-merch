@@ -15,7 +15,7 @@ const products = [
       { label: 'Version A · Magenta sleeves', value: 'Version A', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBqn6xHd3YgwCt8s7z5U3om5px2wiovoSJZ_VXpm7Fluz-dhGaCMRepC7t9Ox8TQA5diigXPWbMWEo0MnCueM7_1A52IzQaCZtIhd3omCDaDmQBhuJGteuhnnrE9CKEc62hiO_gHUIIbqWjdW66r_3olxqdKucEBUtlSHCCXbgPt0IhrFkK2wK1T83pPTrtUFO6iMAQAaGRhx0aKCKNpavsnWoauCXzO6Td6Ge8oxaOq2oRxljlk0wsB146sYTdxPI9MQ' },
       { label: 'Version B · Monochrome cream', value: 'Version B', image: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCDAukFbIUrp-14_QvOkrp39sxQBi29k7qPgOZWXBomsb-gV1Sj-ItqlIiPbf0vBcfKl0hBSYct_XbsiCdBGULEbufyHHttaa-EiXY5xmlez0nJ1c40xWXAh7mAxYGI4zVYD0h--DfoRnJXPQfASU_8cvgAem4QCr37JEmqoPFNr5mZ0MlL65J15U7Uvgrk2N3NPM3Yinbu27gtoLGzIXFr8c9iIqoZnOMifw0R4j4e5o5CLIF2og_2ka53jJHp1vOd-A' },
     ],
-    sizes: ['S', 'M', 'L', 'XL', '2XL'],
+    sizes: ['S', 'M', 'L', 'XL'],
     type: 'tee',
   },
   {

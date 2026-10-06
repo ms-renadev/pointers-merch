@@ -119,16 +119,16 @@ function ProductCard({ product, addToCart }) {
   const [selectedOption, setSelectedOption] = useState(0)
   const [size, setSize] = useState('M')
   const [stickerPack, setStickerPack] = useState('4-Pack')
+  const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0] || '')
   const option = product.options?.[selectedOption]
   const price = product.type === 'stickers' && stickerPack === 'Single' ? 6 : product.price
   const image = option?.image || product.image
   const variant = [
     option?.value,
     product.type === 'tee' ? `Size ${size}` : null,
-    product.variants ? product.selectedVariant : null,
+    product.variants ? selectedVariant : null,
     product.type === 'stickers' ? stickerPack : null,
   ].filter(Boolean).join(' / ')
-  const [selectedVariant, setSelectedVariant] = useState(product.variants?.[0] || '')
 
   return (
     <article className={`product-card ${product.sku === 'PTR-STK-05' ? 'product-card-wide' : ''}`}>
@@ -289,7 +289,11 @@ function App() {
   const [bundleLanyard, setBundleLanyard] = useState('Version A')
 
   const subtotal = useMemo(() => cart.reduce((sum, item) => sum + item.price * item.qty, 0), [cart])
-  const discount = discountEnabled ? subtotal * 0.05 : 0
+  const discountableSubtotal = useMemo(
+    () => cart.reduce((sum, item) => sum + (item.discountEligible ? item.price * item.qty : 0), 0),
+    [cart],
+  )
+  const discount = discountEnabled ? discountableSubtotal * 0.05 : 0
   const total = subtotal - discount
   const itemCount = cart.reduce((sum, item) => sum + item.qty, 0)
   const visibleProducts = products.filter((product) => {
@@ -302,7 +306,14 @@ function App() {
     setCart((current) => {
       const existing = current.find((item) => item.sku === product.sku && item.variant === variant)
       if (existing) return current.map((item) => item === existing ? { ...item, qty: item.qty + 1 } : item)
-      return [...current, { sku: product.sku, title: product.shortName, variant, price, qty: 1 }]
+      return [...current, {
+        sku: product.sku,
+        title: product.shortName,
+        variant,
+        price,
+        qty: 1,
+        discountEligible: product.sku !== 'PTR-BNDL-01',
+      }]
     })
   }
 

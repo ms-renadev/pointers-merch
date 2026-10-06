@@ -5,7 +5,6 @@ import { normalizeCatalog, PRODUCT_FALLBACK } from './data/products'
 import Admin from './components/Admin'
 import {DispatchCountdown} from './components/DispatchCountdown'
 import FaqSection from './components/FaqSection'
-
 const productImageFiles = import.meta.glob(
   './assets/*.{avif,gif,jpg,jpeg,png,webp}',
   { eager: true, query: '?url', import: 'default' },
@@ -271,7 +270,7 @@ function App() {
       ])
       if (cancelled) return
       if (productResult.error || variantResult.error) {
-        console.warn('Could not load the database catalog; using the spreadsheet fallback.', productResult.error ?? variantResult.error)
+        console.error('Could not load the database catalog; using the spreadsheet fallback.', productResult.error ?? variantResult.error)
       } else if (productResult.data.length === 0) {
         console.warn('The database catalog is empty; using the spreadsheet fallback.')
       } else if (!productResult.data.every((product) =>
@@ -288,7 +287,7 @@ function App() {
       }
     }
     loadCatalog().catch((error) => {
-      if (!cancelled) console.warn('Could not load the database catalog; using the spreadsheet fallback.', error)
+      if (!cancelled) console.error('Could not load the database catalog; using the spreadsheet fallback.', error)
     })
     return () => { cancelled = true }
   }, [])
@@ -397,7 +396,7 @@ function App() {
             <p className="hero-description">Official limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS.</p>
             <div className="hero-actions"><a className="button-primary" href="#catalog">EXPLORE THE CATALOG <Icon>arrow_downward</Icon></a><a className="text-link" href="#bundle-guide">VIEW THE BUNDLES <Icon>arrow_forward</Icon></a></div>
           </div>
-
+          
           <div className="hero-status hero-status-error">
             <DispatchCountdown targetDate={reservationDeadline} />
             <div className="dispatch-details">
@@ -451,7 +450,9 @@ function App() {
         </section>
         <FaqSection />
       </main>
-      <footer className="site-footer"><a className="brand" href="#top"><span className="brand-mark"><img src={productImages.logo} alt="" /></span><span className="brand-copy"><span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span><span className="brand-subtitle">MSU-MARAWI CICS · RELEASE 01/26</span></span></a><p>Student-run merchandise store · For order assistance, contact the POINTERS CICS committee.</p><a href="?admin=1">ADMIN</a><a href="#top">BACK TO TOP ↑</a></footer>
+      <footer className="site-footer">
+        <a className="brand" href="#top"><span className="brand-mark"><img src={productImages.logo} alt="" /></span><span className="brand-copy"><span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span><span 
+        className="brand-subtitle">MSU-MARAWI CICS · RELEASE 01/26</span></span></a><p>Student-run merchandise store · For order assistance, contact the POINTERS CICS committee.</p><a href="?admin=1">ADMIN</a><a href="#top">BACK TO TOP ↑</a></footer>
       <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} total={total} onSubmit={submitCheckout} receipt={receipt} busy={checkoutBusy} error={checkoutError} />
     </>
   )

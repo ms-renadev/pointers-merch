@@ -31,10 +31,10 @@ const stickersDesigns = [
 ]
 
 const bundleDesigns = [
-  { name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA' },
-  { name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB' },
-  { name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC' },
-  { name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD' },
+  { name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA.jpeg' },
+  { name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB.png' },
+  { name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC.png' },
+  { name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD.png' },
 ]
 const bundleComponents = {
   'PTR-BNDL-A': [

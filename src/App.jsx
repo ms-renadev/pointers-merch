@@ -148,7 +148,7 @@ const image = productImages[design?.imagePath]
             product.type === 'bundle' ? selectedBundleComponents : [],
           )}
         >
-          <Icon>add</Icon> ADD TO CART
+         ADD TO CART
         </button>
       </div>
     </article>

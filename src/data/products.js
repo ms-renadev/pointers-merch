@@ -30,6 +30,12 @@ const stickersDesigns = [
   { name: 'Sticker', label: 'Sticker · Tech Vinyl', imagePath: 'Stickers' },
 ]
 
+const bundleDesigns = [
+  { name: 'Bundle A', label: 'Bundle A · Complete Pack', imagePath: 'setA' },
+  { name: 'Bundle B', label: 'Bundle B · Tee + Lanyard + Pins', imagePath: 'setB' },
+  { name: 'Bundle C', label: 'Bundle C · Tee + Lanyard + Keychain', imagePath: 'setC' },
+  { name: 'Bundle D', label: 'Bundle D · Tee + Lanyard', imagePath: 'setD' },
+]
 const bundleComponents = {
   'PTR-BNDL-A': [
     { sku: 'PTR-TEE-01', label: 'T-shirt' },
@@ -132,7 +138,8 @@ export const PRODUCT_FALLBACK = [
     meta: '5-PIECE BUNDLE',
     description: 'T-shirt, lanyard, pin, keychain, and stickers. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-A'],
-    designs: [],
+  // <-- Dito ilagay ang pangalan ng iisang image file mo (halimbawa: Bundle_Set_A)
+    designs: bundleDesigns,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
@@ -147,7 +154,7 @@ export const PRODUCT_FALLBACK = [
     meta: '3-PIECE BUNDLE',
     description: 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-B'],
-    designs: [],
+    designs: bundleDesigns,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
@@ -162,7 +169,7 @@ export const PRODUCT_FALLBACK = [
     meta: '3-PIECE BUNDLE',
     description: 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-C'],
-    designs: [],
+    designs: bundleDesigns,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
@@ -177,7 +184,7 @@ export const PRODUCT_FALLBACK = [
     meta: '2-PIECE BUNDLE',
     description: 'T-shirt and lanyard. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-D'],
-    designs: [],
+    designs: bundleDesigns,
     sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },

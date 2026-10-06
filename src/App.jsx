@@ -27,8 +27,8 @@ function Header({ itemCount, total, onSearch, onCart }) {
     <header className="site-header">
       <div className="system-bar">
         <div className="system-bar-inner">
-          <span><i className="status-dot" /> MSU-MARAWI · COLLEGE OF INFORMATION &amp; COMPUTING SCIENCES · POINTERS 2026 DROP</span>
-          <span className="system-status">SYS_STAT // ACTIVE_REGISTRY <b>BATCH_01 // CONFIRMED</b></span>
+          <span><i className="status-dot" /> MSU-MARAWI · COLLEGE OF INFORMATION &amp; COMPUTING SCIENCES · POINTERS 2026-2027</span>
+          <span className="system-status"> <b>BATCH_01</b></span>
         </div>
       </div>
       <div className="navigation">
@@ -411,7 +411,7 @@ function App() {
           </div>
           <div className="hero-art">
             <div className="hero-image-wrap">{productImages['pointers cover page'] ? <img src={productImages['pointers cover page']} alt="POINTERS merchandise collection" /> : <div className="image-placeholder hero-placeholder"><span>POINTERS 2026</span><Icon>inventory_2</Icon><small>ADD YOUR BUNDLE IMAGE</small></div>}</div>
-            <span className="art-stamp">RELEASE<br />01/26</span>
+            <span className="art-stamp">RELEASE<br />10/18</span>
             <span className="art-caption">POINTERS COMPUTING SOCIETY<br />MSU-MARAWI · CICS</span>
           </div>
           <div className="hero-status"><div><span>ORDER PROTOCOL</span><b>PRE-ORDER ONLY</b></div><div><span>DISPATCH LOCATION</span><b>CICS-MULTIMEDIA ROOM</b></div><div><span>BATCH STATUS</span><b><i className="status-dot" /> OPEN FOR ORDERS</b></div></div>

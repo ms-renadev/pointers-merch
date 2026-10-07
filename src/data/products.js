@@ -24,7 +24,7 @@ const keychainsDesigns = [
   { name: 'V5', label: 'V5 · Progress Over Perfection', imagePath: 'keychains' },
   { name: 'V6', label: 'V6 · Go Study!', imagePath: 'keychains' },
   { name: 'V7', label: 'V7 · I Need To Pass Meme', imagePath: 'keychains' },
-  { name: 'Custom design', label: 'Custom design · Upload your file', imagePath: 'keychains' },
+  { name: 'Custom design', imagePath: 'customizedkeychain', label: 'Custom design · Upload your file', imagePath: 'keychains' },
 ]
 
 const stickersDesigns = [

@@ -37,7 +37,7 @@ function Header({ itemCount, total, onSearch, onCart }) {
           <span className="brand-mark"><img src={productImages.logo} alt="" /></span>
           <span className="brand-copy">
             <span className="brand-title">POINTERS <b>OFFICIAL STORE</b></span>
-            <span className="brand-subtitle">POINTERS COMPUTING SOCIETY // MSU-MARAWI CICS</span>
+            <span className="brand-subtitle">POINTERS COMPUTING SOCIETY</span>
           </span>
         </a>
         <div className="nav-actions">
@@ -689,7 +689,7 @@ function App() {
             <span className="eyebrow"><i className="status-dot" /> PRE-ORDERS ACTIVE</span>
             <p className="hero-overline">COLLEGE OF INFORMATION &amp; COMPUTING SCIENCES</p>
             <h1>MSU-POINTERS<br /><em>BATCH '26</em> MERCHANDISE</h1>
-            <p className="hero-description">OOfficial limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS. Everyone is reminded that payments must be settled by Monday, October 12, as ordering will begin right after, with priority given to those who have paid via GCash, so those paying over-the-counter should make their payments now at the CICS-Multimedia Room.</p>
+            <p className="hero-description">Official limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS. Everyone is reminded that payments must be settled by Monday, October 12, as ordering will begin right after, with priority given to those who have paid via GCash, so those paying over-the-counter should make their payments now at the CICS-Multimedia Room.</p>
             <div className="hero-actions"><a className="button-primary" href="#catalog">EXPLORE THE CATALOG <Icon>arrow_downward</Icon></a><a className="text-link" href="#bundle-guide">VIEW THE BUNDLES <Icon>arrow_forward</Icon></a></div>
           </div>
           

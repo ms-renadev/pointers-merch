@@ -167,7 +167,6 @@ export default function Admin() {
     setError('')
 
     try {
-      // Step 1: Burahin muna ang nauugnay na items sa store_order_items table
       const { error: itemsDeleteError } = await supabase
         .from('store_order_items')
         .delete()
@@ -177,7 +176,6 @@ export default function Admin() {
         throw new Error(`Failed to delete order items: ${itemsDeleteError.message}`)
       }
 
-      // Step 2: Burahin ang mismong order sa store_orders table
       const { error: orderDeleteError } = await supabase
         .from('store_orders')
         .delete()
@@ -187,7 +185,6 @@ export default function Admin() {
         throw new Error(`Failed to delete order: ${orderDeleteError.message}`)
       }
 
-      // Step 3: Alisin ang order sa local React state
       setOrders((current) => current.filter((order) => order.id !== orderId))
     } catch (err) {
       setError(err.message)
@@ -324,37 +321,86 @@ export default function Admin() {
               </div>
 
               <ul>
-                {order.store_order_items?.map((item, idx) => (
-                  <li key={item.id || idx}>
-                    <span>
-                      {item.quantity} × {item.product_name}
-                      {item.size ? ` · ${item.size}` : ''}
-                      
-                      {item.selections && Array.isArray(item.selections) && item.selections.length > 0 && (
-                        <div className="admin-item-selections" style={{ marginTop: '4px' }}>
-                          <small>
-                            {item.selections.map((selection) => 
-                              `${selection.name || 'Custom'}: ${selection.design || ''}${selection.color ? ` · Color: ${selection.color}` : ''}${selection.size ? ` · Size ${selection.size}` : ''}`
-                            ).join(' / ')}
-                          </small>
+                {order.store_order_items?.map((item, idx) => {
+                  const cleanProductName = item.product_name ? item.product_name.split('(')[0].trim() : ''
 
-                          {item.selections.filter((s) => s.file_path).map((selection) => (
+                  // Helper function para sa sub-details string
+                  const getSubDetailsString = () => {
+                    // Case 1: Kung may selections array (Kahit single o bundle)
+                    if (item.selections && Array.isArray(item.selections) && item.selections.length > 0) {
+                      const isBundle = item.product_name?.toLowerCase().includes('bundle')
+                      const selectionDetails = item.selections.map((sel) => {
+                        const parts = []
+                        const selectionValue = sel.design || sel.version || sel.variant
+                        if (sel.name && selectionValue) parts.push(`${sel.name}: ${selectionValue}`)
+                        else if (selectionValue) parts.push(selectionValue)
+                        else if (sel.name) parts.push(sel.name)
+                        if (sel.color) parts.push(`Color: ${sel.color}`)
+                        if (sel.size) parts.push(`Size: ${sel.size}`)
+                        return parts.join(' · ') || JSON.stringify(sel)
+                      }).join(' / ')
+                      const design = item.design_name || item.variant
+                      return [
+                        !isBundle && design ? `Version: ${design}` : null,
+                        selectionDetails,
+                      ].filter(Boolean).join(' · ')
+                    }
+
+                    // Case 2: Direct properties sa store_order_items (design_name, variant, size)
+                    const directParts = []
+
+                    // Design / Version check
+                    const designVal = item.design_name || (typeof item.variant === 'string' ? item.variant : item.variant?.design || item.variant?.version)
+                    if (designVal) directParts.push(`Version: ${designVal}`)
+
+                    // Color / Size check
+                    const colorOrSizeVal = item.size || (typeof item.variant === 'object' ? item.variant?.color || item.variant?.size : null)
+                    if (colorOrSizeVal) directParts.push(`Color/Size: ${colorOrSizeVal}`)
+
+                    if (directParts.length > 0) {
+                      return directParts.join(' · ')
+                    }
+
+                    // Fallback kapag walang anumang match
+                    return null
+                  }
+
+                  const subDetailsText = getSubDetailsString()
+
+                  return (
+                    <li key={item.id || idx}>
+                      <div>
+                        {/* Main Line: Quantity x Clean Product Name */}
+                        <span>
+                          {item.quantity} × {cleanProductName}
+                        </span>
+
+                        {/* Sub-details (nasa BABA) */}
+                        <div className="admin-item-selections" style={{ marginTop: '4px', color: 'var(--color-text-muted, #666)' }}>
+                          {subDetailsText && (
+                            <small style={{ display: 'block' }}>
+                              {subDetailsText}
+                            </small>
+                          )}
+
+                          {/* Preview Button para sa Custom Uploaded Designs */}
+                          {item.selections && Array.isArray(item.selections) && item.selections.filter((s) => s.file_path).map((selection) => (
                             <button
                               key={selection.file_path}
                               className="button-secondary"
                               type="button"
                               style={{ display: 'block', marginTop: '4px', fontSize: '0.8rem' }}
-                              onClick={() => openImagePreview('custom-designs', selection.file_path, `Custom Keychain Design (${selection.design || item.product_name})`)}
+                              onClick={() => openImagePreview('custom-designs', selection.file_path, `Custom Keychain Design (${selection.design || cleanProductName})`)}
                             >
                               VIEW CUSTOM KEYCHAIN IMAGE
                             </button>
                           ))}
                         </div>
-                      )}
-                    </span>
-                    <b>{formatMoney(item.line_total || item.unit_price * item.quantity)}</b>
-                  </li>
-                ))}
+                      </div>
+                      <b>{formatMoney(item.line_total || item.unit_price * item.quantity)}</b>
+                    </li>
+                  )
+                })}
               </ul>
 
               <div className="admin-order-total">

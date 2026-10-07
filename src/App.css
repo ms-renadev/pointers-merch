@@ -417,6 +417,12 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .admin-login h2 { margin: 0; font: 600 20px var(--display); }
 .admin-login > label { display: grid; gap: 6px; color: var(--muted); font: 9px var(--mono); }
 .admin-login > label input { min-height: 38px; padding: 8px; border: 1px solid #d4ced1; }
+.admin-password-field { position: relative; display: block; }
+.admin-login > label .admin-password-field input { width: 100%; padding-right: 44px; }
+.admin-password-toggle { position: absolute; top: 50%; right: 8px; display: grid; width: 30px; height: 30px; padding: 5px; place-items: center; transform: translateY(-50%); border: 0; color: var(--muted); background: transparent; cursor: pointer; }
+.admin-password-toggle:hover { color: var(--ink); }
+.admin-password-toggle:focus-visible { outline: 2px solid var(--pink); outline-offset: 1px; }
+.admin-password-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .admin-login > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .admin-orders { margin-top: 24px; }
 .admin-orders-title { display: flex; align-items: baseline; justify-content: space-between; }

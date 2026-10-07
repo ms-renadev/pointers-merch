@@ -36,7 +36,7 @@ The browser key is a publishable key protected by the database policies. Never p
    values ('PASTE-AUTH-USER-UUID-HERE');
    ```
 
-10. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with that Supabase Auth account to view orders, payment receipts, or change order status.
+10. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with the email address and password of that Supabase Auth account to view orders, payment receipts, or change order status. A valid Auth account must also be listed in `store_admins` as shown above.
 
 If the database is not configured or the migration has not been run, the storefront uses the spreadsheet-based fallback catalog. It does not display a successful order receipt unless the reservation is actually saved.
 

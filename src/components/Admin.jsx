@@ -21,7 +21,7 @@ export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [adminRole, setAdminRole] = useState('assistant') // Default role
+  const [adminRole, setAdminRole] = useState('admin')
   const [orders, setOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loadedForUser, setLoadedForUser] = useState('')
@@ -32,8 +32,8 @@ export default function Admin() {
   // Role Permissions Logic
   // Parehong may Full Access / Delete Rights ang Secretariat at Executive
   const canDeleteOrders = ['secretariat', 'executive', 'superadmin'].includes(adminRole)
-  const canUpdateStatus = ['secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
-  const canViewReceipts = ['secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
+  const canUpdateStatus = ['admin', 'secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
+  const canViewReceipts = ['admin', 'secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
@@ -46,7 +46,7 @@ export default function Admin() {
           setOrders([])
           setLoadedForUser('')
           setIsAdmin(false)
-          setAdminRole('assistant')
+          setAdminRole('admin')
         } else {
           await verifyAdminAccess(nextSession.user.id)
         }
@@ -72,17 +72,19 @@ export default function Admin() {
   async function verifyAdminAccess(userId) {
     const { data, error: adminErr } = await supabase
       .from('store_admins')
-      .select('user_id, role')
+      .select('user_id')
       .eq('user_id', userId)
-      .single()
+      .maybeSingle()
 
-    if (adminErr || !data) {
+    if (adminErr) {
       setIsAdmin(false)
-      setAdminRole('assistant')
-      setError('Access denied: Your account is not listed in store_admins.')
+      setError(`Could not verify admin access: ${adminErr.message}`)
+    } else if (!data) {
+      setIsAdmin(false)
+      setError('Access denied: This Supabase account is not listed in store_admins.')
     } else {
       setIsAdmin(true)
-      setAdminRole(data.role || 'assistant')
+      setAdminRole('admin')
       setError('')
     }
   }
@@ -138,46 +140,24 @@ export default function Admin() {
 
   const ordersLoading = Boolean(session && isAdmin && loadedForUser !== session.user.id)
 
-  // Pseudo-Username Sign In Function
   async function signIn(event) {
     event.preventDefault()
     setError('')
     const formData = new FormData(event.currentTarget)
-    const usernameInput = formData.get('username')?.trim().toLowerCase()
+    const email = formData.get('email')?.trim()
     const passwordInput = formData.get('password')
 
-    if (!usernameInput || !passwordInput) {
-      setError('Please provide both username and password.')
+    if (!email || !passwordInput) {
+      setError('Please provide both email and password.')
       return
     }
 
-    try {
-      // 1. Verify if username exists in store_admins
-      const { data: adminRecord, error: fetchErr } = await supabase
-        .from('store_admins')
-        .select('user_id, username, role')
-        .eq('username', usernameInput)
-        .single()
-
-      if (fetchErr || !adminRecord) {
-        setError('Invalid username or password.')
-        return
-      }
-
-      // 2. Map username to internal auth email
-      const internalEmail = `${usernameInput}@pointers.internal`
-
-      // 3. Authenticate with Supabase Auth
-      const { error: signInError } = await supabase.auth.signInWithPassword({
-        email: internalEmail,
-        password: passwordInput,
-      })
-
-      if (signInError) {
-        setError('Invalid username or password.')
-      }
-    } catch (err) {
-      setError('An error occurred during sign in.')
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password: passwordInput,
+    })
+    if (signInError) {
+      setError(`Sign in failed: ${signInError.message}`)
     }
   }
 
@@ -288,7 +268,7 @@ export default function Admin() {
         <a href="/" className="text-link">← STORE</a>
         <div>
           <span className="eyebrow">POINTERS // PRIVATE AREA</span>
-          <h1>ORDER ADMIN <small style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase' }}>({adminRole})</small></h1>
+          <h1>ORDER ADMIN</h1>
         </div>
         {session && <button className="button-secondary" type="button" onClick={signOut}>SIGN OUT</button>}
       </header>
@@ -316,13 +296,12 @@ export default function Admin() {
         <form className="admin-login checkout-form" onSubmit={signIn}>
           <h2>ADMIN SIGN IN</h2>
           <label>
-            USERNAME
-            <input 
-              name="username" 
-              type="text" 
-              autoComplete="username" 
-              required 
-              placeholder="e.g. secretariat_admin" 
+            EMAIL
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
             />
           </label>
           <label>

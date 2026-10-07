@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import '../App.css'
 
-// Katugma na sa Uppercase defaults sa iyong database schema ('PENDING')
 const orderStatuses = ['PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED']
 
 function formatMoney(value) {
@@ -28,7 +27,6 @@ export default function Admin() {
   const [busyOrder, setBusyOrder] = useState('')
   const [activePreview, setActivePreview] = useState(null)
 
-  // Subskripsyon sa Auth state changes
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
 
@@ -62,7 +60,6 @@ export default function Admin() {
     }
   }, [])
 
-  // I-verify kung nasa `store_admins` table ang user_id
   async function verifyAdminAccess(userId) {
     const { data, error: adminErr } = await supabase
       .from('store_admins')
@@ -79,7 +76,6 @@ export default function Admin() {
     }
   }
 
-  // Fetch orders kapag authenticated at nakumpirmang admin
   useEffect(() => {
     if (!session || !isAdmin) return
 
@@ -161,6 +157,43 @@ export default function Admin() {
       setOrders((current) => current.map((order) => order.id === orderId ? { ...order, status } : order))
     }
     setBusyOrder('')
+  }
+
+  async function deleteOrder(orderId, referenceCode) {
+    const confirmed = window.confirm(`Are you sure you want to permanently delete order ${referenceCode}? This action cannot be undone.`)
+    if (!confirmed) return
+
+    setBusyOrder(orderId)
+    setError('')
+
+    try {
+      // Step 1: Burahin muna ang nauugnay na items sa store_order_items table
+      const { error: itemsDeleteError } = await supabase
+        .from('store_order_items')
+        .delete()
+        .eq('order_id', orderId)
+
+      if (itemsDeleteError) {
+        throw new Error(`Failed to delete order items: ${itemsDeleteError.message}`)
+      }
+
+      // Step 2: Burahin ang mismong order sa store_orders table
+      const { error: orderDeleteError } = await supabase
+        .from('store_orders')
+        .delete()
+        .eq('id', orderId)
+
+      if (orderDeleteError) {
+        throw new Error(`Failed to delete order: ${orderDeleteError.message}`)
+      }
+
+      // Step 3: Alisin ang order sa local React state
+      setOrders((current) => current.filter((order) => order.id !== orderId))
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setBusyOrder('')
+    }
   }
 
   async function openImagePreview(bucketName, rawPath, title) {
@@ -249,16 +282,28 @@ export default function Admin() {
                   <b>{order.reference_code}</b>
                   <span>{new Date(order.created_at).toLocaleString()}</span>
                 </div>
-                <select
-                  aria-label={`Status for ${order.reference_code}`}
-                  disabled={busyOrder === order.id}
-                  value={order.status ? order.status.toUpperCase() : 'PENDING'}
-                  onChange={(event) => updateStatus(order.id, event.target.value)}
-                >
-                  {orderStatuses.map((status) => (
-                    <option key={status} value={status}>{status}</option>
-                  ))}
-                </select>
+                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <select
+                    aria-label={`Status for ${order.reference_code}`}
+                    disabled={busyOrder === order.id}
+                    value={order.status ? order.status.toUpperCase() : 'PENDING'}
+                    onChange={(event) => updateStatus(order.id, event.target.value)}
+                  >
+                    {orderStatuses.map((status) => (
+                      <option key={status} value={status}>{status}</option>
+                    ))}
+                  </select>
+                  
+                  <button
+                    className="button-secondary"
+                    type="button"
+                    disabled={busyOrder === order.id}
+                    style={{ color: 'var(--color-error, #d9534f)', borderColor: 'var(--color-error, #d9534f)' }}
+                    onClick={() => deleteOrder(order.id, order.reference_code)}
+                  >
+                    DELETE ORDER
+                  </button>
+                </div>
               </div>
 
               <div className="admin-order-customer">

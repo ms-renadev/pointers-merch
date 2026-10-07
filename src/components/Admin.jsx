@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react'
 import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import '../App.css'
 
-const orderStatuses = ['pending', 'confirmed', 'fulfilled', 'cancelled']
+// Katugma na sa Uppercase defaults sa iyong database schema ('PENDING')
+const orderStatuses = ['PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED']
 
 function formatMoney(value) {
-  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value))
+  return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0)
 }
 
 function extractStoragePath(rawPath, bucketName) {
@@ -20,30 +21,38 @@ function extractStoragePath(rawPath, bucketName) {
 export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
+  const [isAdmin, setIsAdmin] = useState(false)
   const [orders, setOrders] = useState([])
   const [loadedForUser, setLoadedForUser] = useState('')
   const [error, setError] = useState(isSupabaseConfigured ? '' : 'Configure Supabase before opening the admin dashboard.')
   const [busyOrder, setBusyOrder] = useState('')
   const [activePreview, setActivePreview] = useState(null)
 
+  // Subskripsyon sa Auth state changes
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
 
     let mounted = true
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, nextSession) => {
       if (mounted) {
         setSession(nextSession)
         if (!nextSession) {
           setOrders([])
           setLoadedForUser('')
+          setIsAdmin(false)
+        } else {
+          await verifyAdminAccess(nextSession.user.id)
         }
       }
     })
 
-    supabase.auth.getSession().then(({ data, error: sessionError }) => {
+    supabase.auth.getSession().then(async ({ data, error: sessionError }) => {
       if (!mounted) return
       if (sessionError) setError(sessionError.message)
       setSession(data.session)
+      if (data.session) {
+        await verifyAdminAccess(data.session.user.id)
+      }
       setAuthLoading(false)
     })
 
@@ -53,13 +62,58 @@ export default function Admin() {
     }
   }, [])
 
+  // I-verify kung nasa `store_admins` table ang user_id
+  async function verifyAdminAccess(userId) {
+    const { data, error: adminErr } = await supabase
+      .from('store_admins')
+      .select('user_id')
+      .eq('user_id', userId)
+      .single()
+
+    if (adminErr || !data) {
+      setIsAdmin(false)
+      setError('Access denied: Your account is not listed in store_admins.')
+    } else {
+      setIsAdmin(true)
+      setError('')
+    }
+  }
+
+  // Fetch orders kapag authenticated at nakumpirmang admin
   useEffect(() => {
-    if (!session) return
+    if (!session || !isAdmin) return
 
     let cancelled = false
     supabase
       .from('store_orders')
-      .select('id, reference_code, customer_name, college, email, phone, program, payment_method, payment_receipt_path, subtotal, discount_amount, total, status, created_at, store_order_items(product_sku, product_name, design_name, size, quantity, unit_price, line_total, selections)')
+      .select(`
+        id,
+        reference_code,
+        customer_name,
+        college,
+        email,
+        phone,
+        program,
+        payment_method,
+        payment_receipt_path,
+        subtotal,
+        discount_amount,
+        total,
+        status,
+        created_at,
+        store_order_items (
+          id,
+          product_sku,
+          product_name,
+          variant,
+          design_name,
+          size,
+          quantity,
+          unit_price,
+          line_total,
+          selections
+        )
+      `)
       .order('created_at', { ascending: false })
       .then(({ data, error: queryError }) => {
         if (cancelled) return
@@ -73,9 +127,9 @@ export default function Admin() {
       })
 
     return () => { cancelled = true }
-  }, [session])
+  }, [session, isAdmin])
 
-  const ordersLoading = Boolean(session && loadedForUser !== session.user.id)
+  const ordersLoading = Boolean(session && isAdmin && loadedForUser !== session.user.id)
 
   async function signIn(event) {
     event.preventDefault()
@@ -96,7 +150,11 @@ export default function Admin() {
   async function updateStatus(orderId, status) {
     setBusyOrder(orderId)
     setError('')
-    const { error: updateError } = await supabase.from('store_orders').update({ status }).eq('id', orderId)
+    const { error: updateError } = await supabase
+      .from('store_orders')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', orderId)
+
     if (updateError) {
       setError(`Could not update order status: ${updateError.message}`)
     } else {
@@ -160,7 +218,7 @@ export default function Admin() {
         </div>
       )}
 
-      {!session ? (
+      {!session || !isAdmin ? (
         <form className="admin-login checkout-form" onSubmit={signIn}>
           <h2>ADMIN SIGN IN</h2>
           <label>
@@ -194,11 +252,11 @@ export default function Admin() {
                 <select
                   aria-label={`Status for ${order.reference_code}`}
                   disabled={busyOrder === order.id}
-                  value={order.status}
+                  value={order.status ? order.status.toUpperCase() : 'PENDING'}
                   onChange={(event) => updateStatus(order.id, event.target.value)}
                 >
                   {orderStatuses.map((status) => (
-                    <option key={status}>{status}</option>
+                    <option key={status} value={status}>{status}</option>
                   ))}
                 </select>
               </div>
@@ -222,12 +280,12 @@ export default function Admin() {
 
               <ul>
                 {order.store_order_items?.map((item, idx) => (
-                  <li key={item.product_sku ? `${item.product_sku}-${idx}` : idx}>
+                  <li key={item.id || idx}>
                     <span>
                       {item.quantity} × {item.product_name}
                       {item.size ? ` · ${item.size}` : ''}
                       
-                      {item.selections?.length > 0 && (
+                      {item.selections && Array.isArray(item.selections) && item.selections.length > 0 && (
                         <div className="admin-item-selections" style={{ marginTop: '4px' }}>
                           <small>
                             {item.selections.map((selection) => 
@@ -249,7 +307,7 @@ export default function Admin() {
                         </div>
                       )}
                     </span>
-                    <b>{formatMoney(item.line_total)}</b>
+                    <b>{formatMoney(item.line_total || item.unit_price * item.quantity)}</b>
                   </li>
                 ))}
               </ul>

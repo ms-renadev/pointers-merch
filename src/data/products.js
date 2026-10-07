@@ -209,6 +209,18 @@ export function normalizeCatalog(products, variants) {
     .map((product) => {
       const fallbackItem = fallbackMap.get(product.sku)
       const dbVariants = variantsBySku.get(product.sku) ?? []
+      const fallbackDesigns = fallbackItem?.designs ?? []
+      const isKeychain = product.sku === 'PTR-KEY-03'
+      const normalizedDbVariants = dbVariants.map((variant) => {
+        const fallbackDesign = fallbackDesigns.find((item) => item.name === variant.name)
+        return {
+          ...variant,
+          imagePath: variant.imagePath || fallbackDesign?.imagePath,
+        }
+      })
+      const keychainVariants = isKeychain
+        ? normalizedDbVariants.filter((variant) => !/custom/i.test(`${variant.name} ${variant.label ?? ''}`))
+        : normalizedDbVariants
 
       return {
         sku: product.sku,
@@ -223,13 +235,18 @@ export function normalizeCatalog(products, variants) {
         sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
         bundleItems: product.bundle_items ?? [],
         // Gamitin ang DB variants kung mayroon, kung wala ay babalik sa local designs
-        designs: dbVariants.length > 0 ? [
-          ...dbVariants,
-          ...(product.sku === 'PTR-KEY-03'
-            && !dbVariants.some((variant) => variant.name === 'Custom design')
-            ? [{ name: 'Custom design', label: 'Custom design · Upload your file', imagePath: 'keychains' }]
-            : []),
-        ] : (fallbackItem?.designs ?? []),
+        designs: dbVariants.length > 0
+          ? isKeychain
+            ? [
+              ...keychainVariants,
+              {
+                name: 'Custom design',
+                label: 'Custom design · Upload your file',
+                imagePath: 'customizedkeychain',
+              },
+            ]
+            : normalizedDbVariants
+          : fallbackDesigns,
         discountEligible: product.discount_eligible,
       }
     })

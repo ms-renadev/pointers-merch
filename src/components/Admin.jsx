@@ -31,9 +31,10 @@ export default function Admin() {
   const [activePreview, setActivePreview] = useState(null)
 
   // Role Permissions Logic
-  // Parehong may Full Access / Delete Rights ang Secretariat at Executive
+  // Secretariat at Executive lamang ang may Delete Rights
   const canDeleteOrders = ['secretariat', 'executive', 'superadmin'].includes(adminRole)
-  const canUpdateStatus = ['admin', 'secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
+  // Lahat maliban sa pure assistant view ay pwedeng mag-update at mag-view ng receipts
+  const canUpdateStatus = ['admin', 'secretariat', 'executive', 'superadmin', 'finance', 'assistant'].includes(adminRole)
   const canViewReceipts = ['admin', 'secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
 
   useEffect(() => {
@@ -274,7 +275,7 @@ export default function Admin() {
         <a href="/" className="text-link">← STORE</a>
         <div>
           <span className="eyebrow">POINTERS // PRIVATE AREA</span>
-          <h1>ORDER ADMIN</h1>
+          <h1>ORDER ADMIN ({adminRole.toUpperCase()})</h1>
         </div>
         {session && <button className="button-secondary" type="button" onClick={signOut}>SIGN OUT</button>}
       </header>

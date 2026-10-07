@@ -28,15 +28,60 @@ The browser key is a publishable key protected by the database policies. Never p
 6. Run [`supabase/migrations/202610060005_store_order_item_variant.sql`](./supabase/migrations/202610060005_store_order_item_variant.sql) to fix order saves for existing databases with a required `variant` field.
 7. Run [`supabase/migrations/202610060006_store_order_item_price.sql`](./supabase/migrations/202610060006_store_order_item_price.sql) to populate the required legacy `price` column from the validated unit price.
 8. Run [`supabase/migrations/202610060007_order_receipts_and_payment_repair.sql`](./supabase/migrations/202610060007_order_receipts_and_payment_repair.sql) to repair legacy item-price/variant fields, restore the private payment-proof bucket and policies, and update the order RPC to return the saved itemized order. This final repair migration is also required for checkout to save the itemized student receipt.
-9. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
-10. In **Authentication → Users**, create an admin account. Copy its user UUID and run this in SQL Editor:
+9. Run [`supabase/migrations/202610080001_admin_usernames_and_roles.sql`](./supabase/migrations/202610080001_admin_usernames_and_roles.sql) to add the admin username and role columns used by the admin sign-in and role permissions.
+10. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
+11. In **Authentication → Users**, create an Auth user for each account email below if it does not already exist. Set its password in Supabase; do not insert users or passwords into `auth.users` using SQL.
+
+   | Role | Username | Auth email |
+   | --- | --- | --- |
+   | Secretariat | `secretariat_admin` | `secretariat_admin@pointers.internal` |
+   | Executive | `pvpadmin` | `pvpadmin@pointers.internal` |
+   | Finance | `financecommittee` | `financecommittee@pointers.internal` |
+   | Assistant | `assistantofficer` | `assistantofficer@pointers.internal` |
+
+12. After creating the Auth users, run this once in Supabase SQL Editor. It checks that every listed email exists before adding/updating their admin mapping and role:
 
    ```sql
-   insert into public.store_admins (user_id)
-   values ('PASTE-AUTH-USER-UUID-HERE');
+   do $$
+   declare
+     missing_emails text;
+   begin
+     select string_agg(admin.email, ', ')
+     into missing_emails
+     from (values
+       ('secretariat_admin', 'secretariat_admin@pointers.internal', 'secretariat'),
+       ('pvpadmin', 'pvpadmin@pointers.internal', 'executive'),
+       ('financecommittee', 'financecommittee@pointers.internal', 'finance'),
+       ('assistantofficer', 'assistantofficer@pointers.internal', 'assistant')
+     ) as admin(username, email, role)
+     left join auth.users as auth_user
+       on lower(auth_user.email) = lower(admin.email)
+     where auth_user.id is null;
+
+     if missing_emails is not null then
+       raise exception 'Create these users under Authentication → Users first: %', missing_emails;
+     end if;
+
+     insert into public.store_admins (user_id, username, role)
+     select auth_user.id, admin.username, admin.role
+     from (values
+       ('secretariat_admin', 'secretariat_admin@pointers.internal', 'secretariat'),
+       ('pvpadmin', 'pvpadmin@pointers.internal', 'executive'),
+       ('financecommittee', 'financecommittee@pointers.internal', 'finance'),
+       ('assistantofficer', 'assistantofficer@pointers.internal', 'assistant')
+     ) as admin(username, email, role)
+     join auth.users as auth_user
+       on lower(auth_user.email) = lower(admin.email)
+     on conflict (user_id) do update
+       set username = excluded.username,
+           role = excluded.role;
+   end;
+   $$;
    ```
 
-10. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with the email address and password of that Supabase Auth account to view orders, payment receipts, or change order status. A valid Auth account must also be listed in `store_admins` as shown above.
+13. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with either the username above or the corresponding full email address, plus the password set for that Auth user.
+
+If sign-in itself reports **“Database error querying schema”**, the request is failing inside Supabase Auth before `store_admins` is checked. The `store_admins` SQL above cannot fix that Auth service error; check the Supabase Dashboard **Logs → Auth** and **Logs → Postgres** at the time of the failed attempt. Do not change or insert rows directly into `auth.users` to reset a password; use the Supabase Dashboard password-reset flow.
 
 If the database is not configured or the migration has not been run, the storefront uses the spreadsheet-based fallback catalog. It does not display a successful order receipt unless the reservation is actually saved.
 

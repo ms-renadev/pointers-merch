@@ -21,7 +21,7 @@ export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
   const [isAdmin, setIsAdmin] = useState(false)
-  const [adminRole, setAdminRole] = useState('admin')
+  const [adminRole, setAdminRole] = useState('assistant')
   const [orders, setOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
   const [loadedForUser, setLoadedForUser] = useState('')
@@ -46,7 +46,7 @@ export default function Admin() {
           setOrders([])
           setLoadedForUser('')
           setIsAdmin(false)
-          setAdminRole('admin')
+          setAdminRole('assistant')
         } else {
           await verifyAdminAccess(nextSession.user.id)
         }
@@ -72,7 +72,7 @@ export default function Admin() {
   async function verifyAdminAccess(userId) {
     const { data, error: adminErr } = await supabase
       .from('store_admins')
-      .select('user_id')
+      .select('user_id, role')
       .eq('user_id', userId)
       .maybeSingle()
 
@@ -84,7 +84,7 @@ export default function Admin() {
       setError('Access denied: This Supabase account is not listed in store_admins.')
     } else {
       setIsAdmin(true)
-      setAdminRole('admin')
+      setAdminRole(data.role?.toLowerCase() || 'assistant')
       setError('')
     }
   }
@@ -144,20 +144,25 @@ export default function Admin() {
     event.preventDefault()
     setError('')
     const formData = new FormData(event.currentTarget)
-    const email = formData.get('email')?.trim()
+    const userInput = formData.get('usernameOrEmail')?.trim().toLowerCase()
     const passwordInput = formData.get('password')
 
-    if (!email || !passwordInput) {
-      setError('Please provide both email and password.')
+    if (!userInput || !passwordInput) {
+      setError('Please provide both your username/email and password.')
       return
     }
+
+    const email = userInput.includes('@') ? userInput : `${userInput}@pointers.internal`
 
     const { error: signInError } = await supabase.auth.signInWithPassword({
       email,
       password: passwordInput,
     })
     if (signInError) {
-      setError(`Sign in failed: ${signInError.message}`)
+      const isAuthDatabaseError = signInError.message.toLowerCase().includes('database error')
+      setError(isAuthDatabaseError
+        ? 'Supabase Auth could not query its database. This is an Auth/database configuration issue, not the store_admins username or role. Check Supabase Auth logs and the SQL checks in the README.'
+        : `Sign in failed: ${signInError.message}`)
     }
   }
 
@@ -296,11 +301,12 @@ export default function Admin() {
         <form className="admin-login checkout-form" onSubmit={signIn}>
           <h2>ADMIN SIGN IN</h2>
           <label>
-            EMAIL
+            USERNAME / EMAIL
             <input
-              name="email"
-              type="email"
-              autoComplete="email"
+              name="usernameOrEmail"
+              type="text"
+              autoComplete="username"
+              placeholder="username or full Supabase Auth email"
               required
             />
           </label>

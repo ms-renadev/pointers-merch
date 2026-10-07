@@ -69,7 +69,7 @@ export const PRODUCT_FALLBACK = [
     price: 349,
     compareAtPrice: 349,
     meta: '240 GSM',  
-    description: 'Made with cotton of a low-poly Dino and DCS back illustration.',    sizes: ['S', 'M', 'L', 'XL'],
+    description: 'Made with cotton of a low-poly Dino and DCS back illustration.',    sizes: ['S', 'M', 'L', 'XL', '2XL'],
     designs: teeDesigns,
     discountEligible: true,
   },
@@ -138,7 +138,7 @@ export const PRODUCT_FALLBACK = [
     bundleItems: bundleComponents['PTR-BNDL-A'],
   // <-- Dito ilagay ang pangalan ng iisang image file mo (halimbawa: Bundle_Set_A)
     designs: bundleADesigns,
-    sizes: ['S', 'M', 'L', 'XL'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
   {
@@ -153,7 +153,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt, lanyard, and pins. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-B'],
     designs: bundleBDesigns,
-    sizes: ['S', 'M', 'L', 'XL'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
   {
@@ -168,7 +168,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt, lanyard, and keychain. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-C'],
     designs: bundleCDesigns,
-    sizes: ['S', 'M', 'L', 'XL'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
   {
@@ -183,7 +183,7 @@ export const PRODUCT_FALLBACK = [
     description: 'T-shirt and lanyard. Bundle price from the DCS price list.',
     bundleItems: bundleComponents['PTR-BNDL-D'],
     designs: bundleDDesigns,
-    sizes: ['S', 'M', 'L', 'XL'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL'],
     discountEligible: false,
   },
 ]
@@ -232,7 +232,7 @@ export function normalizeCatalog(products, variants) {
         compareAtPrice: Number(product.compare_at_price ?? product.price),
         meta: product.meta,
         description: product.description,
-        sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
+        sizes: product.sizes ?? [],
         bundleItems: product.bundle_items ?? [],
         // Gamitin ang DB variants kung mayroon, kung wala ay babalik sa local designs
         designs: dbVariants.length > 0

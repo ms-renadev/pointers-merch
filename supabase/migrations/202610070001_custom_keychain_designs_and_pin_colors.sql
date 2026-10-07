@@ -209,9 +209,6 @@ begin
         end if;
 
         v_size := nullif(btrim(v_component->>'size'), '');
-        if v_size = '2XL' then
-          raise exception '2XL is no longer an available size.' using errcode = '22023';
-        end if;
         if cardinality(v_component_product.sizes) > 0
            and (v_size is null or not (v_size = any(v_component_product.sizes))) then
           raise exception 'A selected bundle item size is unavailable.' using errcode = '22023';
@@ -270,9 +267,6 @@ begin
         raise exception 'A selected product design is unavailable.' using errcode = '22023';
       end if;
 
-      if v_size = '2XL' then
-        raise exception '2XL is no longer an available size.' using errcode = '22023';
-      end if;
       if cardinality(v_product.sizes) > 0
          and (v_size is null or not (v_size = any(v_product.sizes))) then
         raise exception 'A selected product size is unavailable.' using errcode = '22023';

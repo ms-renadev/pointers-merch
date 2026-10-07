@@ -2,6 +2,10 @@ import React, { useState } from 'react';
 
 const faqData = [
   {
+    question: "Hanggang kailan ang deadline ng pagbabayad?",
+    answer: <>Kailangan makapagbayad ng inyong order hanggang <strong>Lunes (October 12, 2026)</strong>. Ito ay upang maiproceso at maipasa na natin ang lahat ng orders sa supplier para sa paggawa ng merchandise.</>
+  },
+  {
     question: "Kailan at saan ang pick-up ng orders?",
     answer: <>Ang official release date at pick-up location ay sa <strong>October 18, 2026</strong>. Ihanda lamang ang inyong Student ID at Order Reference Number. Sa araw na iyon ay mayroong GAAP, kaya lahat ng Freshmen na may NSTP/ROTC class ay ipapa-excuse—may approved excuse letter na para rito.</>
   },

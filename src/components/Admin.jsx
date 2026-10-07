@@ -21,11 +21,19 @@ export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [adminRole, setAdminRole] = useState('assistant') // Default role
   const [orders, setOrders] = useState([])
+  const [searchQuery, setSearchQuery] = useState('')
   const [loadedForUser, setLoadedForUser] = useState('')
   const [error, setError] = useState(isSupabaseConfigured ? '' : 'Configure Supabase before opening the admin dashboard.')
   const [busyOrder, setBusyOrder] = useState('')
   const [activePreview, setActivePreview] = useState(null)
+
+  // Role Permissions Logic
+  // Parehong may Full Access / Delete Rights ang Secretariat at Executive
+  const canDeleteOrders = ['secretariat', 'executive', 'superadmin'].includes(adminRole)
+  const canUpdateStatus = ['secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
+  const canViewReceipts = ['secretariat', 'executive', 'superadmin', 'finance'].includes(adminRole)
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
@@ -38,6 +46,7 @@ export default function Admin() {
           setOrders([])
           setLoadedForUser('')
           setIsAdmin(false)
+          setAdminRole('assistant')
         } else {
           await verifyAdminAccess(nextSession.user.id)
         }
@@ -63,15 +72,17 @@ export default function Admin() {
   async function verifyAdminAccess(userId) {
     const { data, error: adminErr } = await supabase
       .from('store_admins')
-      .select('user_id')
+      .select('user_id, role')
       .eq('user_id', userId)
       .single()
 
     if (adminErr || !data) {
       setIsAdmin(false)
+      setAdminRole('assistant')
       setError('Access denied: Your account is not listed in store_admins.')
     } else {
       setIsAdmin(true)
+      setAdminRole(data.role || 'assistant')
       setError('')
     }
   }
@@ -127,15 +138,47 @@ export default function Admin() {
 
   const ordersLoading = Boolean(session && isAdmin && loadedForUser !== session.user.id)
 
+  // Pseudo-Username Sign In Function
   async function signIn(event) {
     event.preventDefault()
     setError('')
     const formData = new FormData(event.currentTarget)
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: formData.get('email'),
-      password: formData.get('password'),
-    })
-    if (signInError) setError(`Sign in failed: ${signInError.message}`)
+    const usernameInput = formData.get('username')?.trim().toLowerCase()
+    const passwordInput = formData.get('password')
+
+    if (!usernameInput || !passwordInput) {
+      setError('Please provide both username and password.')
+      return
+    }
+
+    try {
+      // 1. Verify if username exists in store_admins
+      const { data: adminRecord, error: fetchErr } = await supabase
+        .from('store_admins')
+        .select('user_id, username, role')
+        .eq('username', usernameInput)
+        .single()
+
+      if (fetchErr || !adminRecord) {
+        setError('Invalid username or password.')
+        return
+      }
+
+      // 2. Map username to internal auth email
+      const internalEmail = `${usernameInput}@pointers.internal`
+
+      // 3. Authenticate with Supabase Auth
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: internalEmail,
+        password: passwordInput,
+      })
+
+      if (signInError) {
+        setError('Invalid username or password.')
+      }
+    } catch (err) {
+      setError('An error occurred during sign in.')
+    }
   }
 
   async function signOut() {
@@ -144,6 +187,11 @@ export default function Admin() {
   }
 
   async function updateStatus(orderId, status) {
+    if (!canUpdateStatus) {
+      setError('Permission denied: You do not have access to update status.')
+      return
+    }
+
     setBusyOrder(orderId)
     setError('')
     const { error: updateError } = await supabase
@@ -160,6 +208,11 @@ export default function Admin() {
   }
 
   async function deleteOrder(orderId, referenceCode) {
+    if (!canDeleteOrders) {
+      setError('Permission denied: Only Secretariat and Executive officers can delete orders.')
+      return
+    }
+
     const confirmed = window.confirm(`Are you sure you want to permanently delete order ${referenceCode}? This action cannot be undone.`)
     if (!confirmed) return
 
@@ -216,6 +269,17 @@ export default function Admin() {
     }
   }
 
+  // Filter orders by search query
+  const filteredOrders = orders.filter((o) => {
+    const q = searchQuery.toLowerCase()
+    return (
+      o.reference_code?.toLowerCase().includes(q) ||
+      o.customer_name?.toLowerCase().includes(q) ||
+      o.program?.toLowerCase().includes(q) ||
+      o.email?.toLowerCase().includes(q)
+    )
+  })
+
   if (authLoading) return <main className="admin-page"><p>Checking admin session…</p></main>
 
   return (
@@ -224,7 +288,7 @@ export default function Admin() {
         <a href="/" className="text-link">← STORE</a>
         <div>
           <span className="eyebrow">POINTERS // PRIVATE AREA</span>
-          <h1>ORDER ADMIN</h1>
+          <h1>ORDER ADMIN <small style={{ fontSize: '0.8rem', opacity: 0.8, textTransform: 'uppercase' }}>({adminRole})</small></h1>
         </div>
         {session && <button className="button-secondary" type="button" onClick={signOut}>SIGN OUT</button>}
       </header>
@@ -252,12 +316,23 @@ export default function Admin() {
         <form className="admin-login checkout-form" onSubmit={signIn}>
           <h2>ADMIN SIGN IN</h2>
           <label>
-            EMAIL ADDRESS
-            <input name="email" type="email" autoComplete="username" required placeholder="admin@cics-pointers.org" />
+            USERNAME
+            <input 
+              name="username" 
+              type="text" 
+              autoComplete="username" 
+              required 
+              placeholder="e.g. secretariat_admin" 
+            />
           </label>
           <label>
             PASSWORD
-            <input name="password" type="password" autoComplete="current-password" required />
+            <input 
+              name="password" 
+              type="password" 
+              autoComplete="current-password" 
+              required 
+            />
           </label>
           <button className="button-primary" type="submit" disabled={!isSupabaseConfigured}>
             SIGN IN
@@ -265,14 +340,21 @@ export default function Admin() {
         </form>
       ) : (
         <section className="admin-orders">
-          <div className="admin-orders-title">
+          <div className="admin-orders-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <h2>PRE-ORDERS</h2>
-            <span>{ordersLoading ? 'LOADING…' : `${orders.length} ORDERS`}</span>
+            <input
+              type="text"
+              placeholder="Search Name, Ref Code, Program..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc', minWidth: '240px' }}
+            />
+            <span>{ordersLoading ? 'LOADING…' : `${filteredOrders.length} ORDERS`}</span>
           </div>
 
-          {!ordersLoading && orders.length === 0 && <p>No orders found.</p>}
+          {!ordersLoading && filteredOrders.length === 0 && <p>No matching orders found.</p>}
 
-          {orders.map((order) => (
+          {filteredOrders.map((order) => (
             <article className="admin-order" key={order.id}>
               <div className="admin-order-heading">
                 <div>
@@ -280,26 +362,36 @@ export default function Admin() {
                   <span>{new Date(order.created_at).toLocaleString()}</span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                  <select
-                    aria-label={`Status for ${order.reference_code}`}
-                    disabled={busyOrder === order.id}
-                    value={order.status ? order.status.toUpperCase() : 'PENDING'}
-                    onChange={(event) => updateStatus(order.id, event.target.value)}
-                  >
-                    {orderStatuses.map((status) => (
-                      <option key={status} value={status}>{status}</option>
-                    ))}
-                  </select>
-                  
-                  <button
-                    className="button-secondary"
-                    type="button"
-                    disabled={busyOrder === order.id}
-                    style={{ color: 'var(--color-error, #d9534f)', borderColor: 'var(--color-error, #d9534f)' }}
-                    onClick={() => deleteOrder(order.id, order.reference_code)}
-                  >
-                    DELETE ORDER
-                  </button>
+                  {/* UPDATE STATUS */}
+                  {canUpdateStatus ? (
+                    <select
+                      aria-label={`Status for ${order.reference_code}`}
+                      disabled={busyOrder === order.id}
+                      value={order.status ? order.status.toUpperCase() : 'PENDING'}
+                      onChange={(event) => updateStatus(order.id, event.target.value)}
+                    >
+                      {orderStatuses.map((status) => (
+                        <option key={status} value={status}>{status}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <span style={{ padding: '4px 8px', background: '#eee', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                      {order.status || 'PENDING'}
+                    </span>
+                  )}
+
+                  {/* DELETE ORDER: Secretariat and Executive */}
+                  {canDeleteOrders && (
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={busyOrder === order.id}
+                      style={{ color: 'var(--color-error, #d9534f)', borderColor: 'var(--color-error, #d9534f)' }}
+                      onClick={() => deleteOrder(order.id, order.reference_code)}
+                    >
+                      DELETE ORDER
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -308,7 +400,8 @@ export default function Admin() {
                 <span>{order.email} · {order.phone}</span>
                 <span>{order.program} · {order.payment_method}</span>
                 
-                {order.payment_receipt_path && (
+                {/* PAYMENT RECEIPT */}
+                {canViewReceipts && order.payment_receipt_path && (
                   <button
                     className="button-secondary"
                     type="button"
@@ -324,9 +417,7 @@ export default function Admin() {
                 {order.store_order_items?.map((item, idx) => {
                   const cleanProductName = item.product_name ? item.product_name.split('(')[0].trim() : ''
 
-                  // Helper function para sa sub-details string
                   const getSubDetailsString = () => {
-                    // Case 1: Kung may selections array (Kahit single o bundle)
                     if (item.selections && Array.isArray(item.selections) && item.selections.length > 0) {
                       const isBundle = item.product_name?.toLowerCase().includes('bundle')
                       const selectionDetails = item.selections.map((sel) => {
@@ -346,22 +437,14 @@ export default function Admin() {
                       ].filter(Boolean).join(' · ')
                     }
 
-                    // Case 2: Direct properties sa store_order_items (design_name, variant, size)
                     const directParts = []
-
-                    // Design / Version check
                     const designVal = item.design_name || (typeof item.variant === 'string' ? item.variant : item.variant?.design || item.variant?.version)
                     if (designVal) directParts.push(`Version: ${designVal}`)
 
-                    // Color / Size check
                     const colorOrSizeVal = item.size || (typeof item.variant === 'object' ? item.variant?.color || item.variant?.size : null)
                     if (colorOrSizeVal) directParts.push(`Color/Size: ${colorOrSizeVal}`)
 
-                    if (directParts.length > 0) {
-                      return directParts.join(' · ')
-                    }
-
-                    // Fallback kapag walang anumang match
+                    if (directParts.length > 0) return directParts.join(' · ')
                     return null
                   }
 
@@ -370,20 +453,13 @@ export default function Admin() {
                   return (
                     <li key={item.id || idx}>
                       <div>
-                        {/* Main Line: Quantity x Clean Product Name */}
-                        <span>
-                          {item.quantity} × {cleanProductName}
-                        </span>
+                        <span>{item.quantity} × {cleanProductName}</span>
 
-                        {/* Sub-details (nasa BABA) */}
                         <div className="admin-item-selections" style={{ marginTop: '4px', color: 'var(--color-text-muted, #666)' }}>
                           {subDetailsText && (
-                            <small style={{ display: 'block' }}>
-                              {subDetailsText}
-                            </small>
+                            <small style={{ display: 'block' }}>{subDetailsText}</small>
                           )}
 
-                          {/* Preview Button para sa Custom Uploaded Designs */}
                           {item.selections && Array.isArray(item.selections) && item.selections.filter((s) => s.file_path).map((selection) => (
                             <button
                               key={selection.file_path}

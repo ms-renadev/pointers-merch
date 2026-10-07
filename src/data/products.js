@@ -24,6 +24,7 @@ const keychainsDesigns = [
   { name: 'V5', label: 'V5 · Progress Over Perfection', imagePath: 'keychains' },
   { name: 'V6', label: 'V6 · Go Study!', imagePath: 'keychains' },
   { name: 'V7', label: 'V7 · I Need To Pass Meme', imagePath: 'keychains' },
+  { name: 'Custom design', label: 'Custom design · Upload your file', imagePath: 'keychains' },
 ]
 
 const stickersDesigns = [
@@ -222,7 +223,13 @@ export function normalizeCatalog(products, variants) {
         sizes: (product.sizes ?? []).filter((size) => size !== '2XL'),
         bundleItems: product.bundle_items ?? [],
         // Gamitin ang DB variants kung mayroon, kung wala ay babalik sa local designs
-        designs: dbVariants.length > 0 ? dbVariants : (fallbackItem?.designs ?? []),
+        designs: dbVariants.length > 0 ? [
+          ...dbVariants,
+          ...(product.sku === 'PTR-KEY-03'
+            && !dbVariants.some((variant) => variant.name === 'Custom design')
+            ? [{ name: 'Custom design', label: 'Custom design · Upload your file', imagePath: 'keychains' }]
+            : []),
+        ] : (fallbackItem?.designs ?? []),
         discountEligible: product.discount_eligible,
       }
     })

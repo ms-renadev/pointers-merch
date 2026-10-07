@@ -116,6 +116,25 @@ export default function Admin() {
     proofWindow.location.href = data.signedUrl
   }
 
+  async function viewCustomDesign(path) {
+    const designWindow = window.open('about:blank', '_blank')
+    if (!designWindow) {
+      setError('Allow pop-ups to view the private custom design file.')
+      return
+    }
+
+    const { data, error: designError } = await supabase.storage
+      .from('custom-designs')
+      .createSignedUrl(path, 300)
+    if (designError) {
+      designWindow.close()
+      setError(`Could not open the custom design file: ${designError.message}`)
+      return
+    }
+
+    designWindow.location.href = data.signedUrl
+  }
+
   if (authLoading) return <main className="admin-page"><p>Checking admin session…</p></main>
 
   return (
@@ -197,9 +216,21 @@ export default function Admin() {
                       {item.quantity} × {item.product_name}
                       {item.size ? ` · ${item.size}` : ''}
                       {item.selections?.length > 0 && (
-                        <small>
-                          {item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}
-                        </small>
+                        <div className="admin-item-selections">
+                          <small>
+                            {item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.color ? ` · ${selection.color}` : ''}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}
+                          </small>
+                          {item.selections.filter((selection) => selection.file_path).map((selection) => (
+                            <button
+                              key={selection.file_path}
+                              className="button-secondary"
+                              type="button"
+                              onClick={() => viewCustomDesign(selection.file_path)}
+                            >
+                              VIEW CUSTOM DESIGN · {selection.design}
+                            </button>
+                          ))}
+                        </div>
                       )}
                     </span>
                     <b>{formatMoney(item.line_total)}</b>

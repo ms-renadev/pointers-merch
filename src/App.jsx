@@ -56,6 +56,8 @@ function ProductCard({ product, catalog, addToCart }) {
   const designs = Array.isArray(product.designs) ? product.designs : []
   const sizes = Array.isArray(product.sizes) ? product.sizes : []
   const [selectedDesign, setSelectedDesign] = useState(designs[0]?.name ?? '')
+  const [selectedColor, setSelectedColor] = useState('Beige')
+  const [customDesignFile, setCustomDesignFile] = useState(null)
   const [size, setSize] = useState(sizes.includes('M') ? 'M' : sizes[0] ?? '')
   const [bundleSelections, setBundleSelections] = useState(() =>
     Object.fromEntries((product.bundleItems ?? []).map((component) => {
@@ -63,9 +65,12 @@ function ProductCard({ product, catalog, addToCart }) {
       return [component.sku, includedProduct?.designs?.[0]?.name ?? '']
     })),
   )
+  const [bundleColors, setBundleColors] = useState(() =>
+    Object.fromEntries((product.bundleItems ?? []).map((component) => [component.sku, 'Beige'])),
+  )
   const design = designs.find((item) => item.name === selectedDesign) ?? designs[0]
-const image = productImages[design?.imagePath] 
-  || (product.type === 'bundle' ? productImages['pointers cover page'] : null)
+  const image = productImages[design?.imagePath]
+    || (product.type === 'bundle' ? productImages['pointers cover page'] : null)
   const selectedBundleComponents = product.type === 'bundle'
     ? (product.bundleItems ?? []).map((component) => {
       const includedProduct = catalog.find((item) => item.sku === component.sku)
@@ -78,11 +83,30 @@ const image = productImages[design?.imagePath]
         label: component.label,
         design: selectedComponentDesign,
         size: component.sku === 'PTR-TEE-01' ? size : null,
-        display: `${component.label}: ${componentDesign?.label ?? componentDesign?.name ?? selectedComponentDesign}${component.sku === 'PTR-TEE-01' ? ` · Size ${size}` : ''}`,
+        color: component.sku === 'PTR-PIN-04' ? bundleColors[component.sku] : null,
+        display: `${component.label}: ${componentDesign?.label ?? componentDesign?.name ?? selectedComponentDesign}${component.sku === 'PTR-PIN-04' ? ` · ${bundleColors[component.sku]}` : ''}${component.sku === 'PTR-TEE-01' ? ` · Size ${size}` : ''}`,
       }
     })
     : []
   const bundleVariant = selectedBundleComponents.map((component) => component.display).join(' / ')
+  const isKeychain = product.sku === 'PTR-KEY-03'
+  const isPin = product.sku === 'PTR-PIN-04'
+  const isCustomDesign = isKeychain && selectedDesign === 'Custom design'
+  const addSelectedProduct = () => {
+    if (isCustomDesign && !customDesignFile) return
+    const options = isPin
+      ? [{ name: 'Color', design: selectedColor }]
+      : isCustomDesign
+        ? [{ name: 'Custom design file', design: customDesignFile.name, file: customDesignFile }]
+        : []
+    addToCart(
+      product,
+      product.type === 'bundle' ? bundleVariant : selectedDesign || 'Standard',
+      product.type === 'bundle' ? null : size,
+      product.type === 'bundle' ? selectedBundleComponents : [],
+      options,
+    )
+  }
 
   return (
     <article className={`product-card ${product.type === 'bundle' ? 'bundle-product-card' : ''}`}>
@@ -101,7 +125,8 @@ const image = productImages[design?.imagePath]
             <b className="bundle-options-heading">INCLUDED ITEMS · CHOOSE EACH DESIGN</b>
             {product.bundleItems.map((component) => {
               const includedProduct = catalog.find((item) => item.sku === component.sku)
-              const componentDesigns = includedProduct?.designs ?? []
+              const componentDesigns = (includedProduct?.designs ?? [])
+                .filter((item) => component.sku !== 'PTR-KEY-03' || item.name !== 'Custom design')
               return (
                 <label className="field-label bundle-component-field" key={component.sku}>
                   {component.label.toUpperCase()}
@@ -116,6 +141,19 @@ const image = productImages[design?.imagePath]
                       <option key={item.name} value={item.name}>{item.label ?? item.name}</option>
                     ))}
                   </select>
+                  {component.sku === 'PTR-PIN-04' && (
+                    <select
+                      aria-label={`${component.label} color`}
+                      value={bundleColors[component.sku] ?? 'Beige'}
+                      onChange={(event) => setBundleColors((current) => ({
+                        ...current,
+                        [component.sku]: event.target.value,
+                      }))}
+                    >
+                      <option value="Beige">Beige</option>
+                      <option value="Magenta">Magenta</option>
+                    </select>
+                  )}
                 </label>
               )
             })}
@@ -135,18 +173,32 @@ const image = productImages[design?.imagePath]
             </select>
           </label>
         )}
+        {isPin && (
+          <label className="field-label">BADGE COLOR
+            <select value={selectedColor} onChange={(event) => setSelectedColor(event.target.value)}>
+              <option value="Beige">Beige</option>
+              <option value="Magenta">Magenta</option>
+            </select>
+          </label>
+        )}
+        {isCustomDesign && (
+          <label className="field-label custom-design-upload">UPLOAD YOUR DESIGN *
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,application/pdf"
+              onChange={(event) => setCustomDesignFile(event.target.files?.[0] ?? null)}
+            />
+            <small>JPG, PNG, WebP, or PDF · Maximum 5 MB{customDesignFile ? ` · ${customDesignFile.name}` : ''}</small>
+          </label>
+        )}
       </div>
       <div className="product-buy">
         <div><strong>{money(product.price)}</strong>{product.compareAtPrice > product.price && <span className="old-price">{money(product.compareAtPrice)}</span>}<span>{product.type === 'bundle' ? 'PRICE PER SET' : 'PRICE PER ITEM'}</span></div>
         <button
           className="button-primary button-small"
           type="button"
-          onClick={() => addToCart(
-            product,
-            product.type === 'bundle' ? bundleVariant : selectedDesign || 'Standard',
-            product.type === 'bundle' ? null : size,
-            product.type === 'bundle' ? selectedBundleComponents : [],
-          )}
+          onClick={addSelectedProduct}
+          disabled={isCustomDesign && !customDesignFile}
         >
          ADD TO CART
         </button>
@@ -163,21 +215,24 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
         <div className="cart-heading"><span><Icon>terminal</Icon> LEDGER</span><b>{count} {count === 1 ? 'ITEM' : 'ITEMS'}</b></div>
         <div className="cart-items">
           {cart.length === 0 ? <div className="cart-empty">[LEDGER_EMPTY]<br />NO SPECIFICATIONS ALLOCATED YET.</div> : cart.map((item) => (
-            <div className="cart-item" key={`${item.sku}-${item.variant}-${item.size}`}>
+            <div className="cart-item" key={item.id}>
               <div className="cart-item-info">
                 <b>{item.title}</b>
                 {item.components?.length
                   ? <ul className="cart-component-selections">{item.components.map((component) => <li key={component.sku}>{component.display}</li>)}</ul>
                   : <span>{item.variant}{item.size ? ` · Size ${item.size}` : ''}</span>}
-                <span>{money(item.price)} each</span>
-              </div>
-              <div className="cart-item-controls">
-                <button type="button" aria-label={`Remove one ${item.title}`} onClick={() => onQuantity(item.sku, item.variant, item.size, -1)}>−</button>
-                <b>{item.qty}</b>
-                <button type="button" aria-label={`Add one ${item.title}`} disabled={item.qty >= 20} onClick={() => onQuantity(item.sku, item.variant, item.size, 1)}>+</button>
-                <strong>{money(item.price * item.qty)}</strong>
-                <button className="remove-item" type="button" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item.sku, item.variant, item.size)}><Icon>delete</Icon></button>
-              </div>
+              {item.options?.map((option, index) => (
+                <span key={`${option.name}-${index}`}>{option.name}: {option.design}</span>
+              ))}
+              <span>{money(item.price)} each</span>
+            </div>
+            <div className="cart-item-controls">
+              <button type="button" aria-label={`Remove one ${item.title}`} onClick={() => onQuantity(item.id, -1)}>−</button>
+              <b>{item.qty}</b>
+              <button type="button" aria-label={`Add one ${item.title}`} disabled={item.qty >= 20} onClick={() => onQuantity(item.id, 1)}>+</button>
+              <strong>{money(item.price * item.qty)}</strong>
+              <button className="remove-item" type="button" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item.id)}><Icon>delete</Icon></button>
+            </div>
             </div>
           ))}
         </div>
@@ -210,7 +265,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
         `${item.product_name} — ${item.quantity} × ${money(Number(item.unit_price))} = ${money(Number(item.line_total))}`,
         `  Design: ${item.design_name}${item.size ? ` · Size ${item.size}` : ''}`,
         ...(item.selections?.length
-          ? [`  Bundle selections: ${item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}`]
+          ? [`  Selections: ${item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.color ? ` · ${selection.color}` : ''}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}`]
           : []),
       ]),
       '',
@@ -255,7 +310,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
                     <b>{item.quantity} × {item.product_name}</b>
                     <small>{item.design_name}{item.size ? ` · Size ${item.size}` : ''}</small>
                     {item.selections?.length > 0 && (
-                      <small>{item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}</small>
+                      <small>{item.selections.map((selection) => `${selection.name}: ${selection.design}${selection.color ? ` · ${selection.color}` : ''}${selection.size ? ` · Size ${selection.size}` : ''}`).join(' / ')}</small>
                     )}
                     <small>{money(Number(item.unit_price))} each</small>
                   </span>
@@ -388,36 +443,32 @@ function App() {
     return matchesCategory && matchesQuery
   })
 
-  function addToCart(product, variant, size, components = []) {
-    setCart((current) => {
-      const existing = current.find((item) =>
-        item.sku === product.sku && item.variant === variant && item.size === size)
-      if (existing) {
-        if (existing.qty >= 20) return current
-        return current.map((item) => item === existing ? { ...item, qty: item.qty + 1 } : item)
-      }
-      return [...current, {
+  function addToCart(product, variant, size, components = [], options = []) {
+    setCart((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
         sku: product.sku,
         title: product.shortName,
         variant,
         size,
         components,
+        options,
         price: product.price,
         qty: 1,
-      }]
-    })
+      },
+    ])
   }
 
-  function changeQuantity(sku, variant, size, delta) {
+  function changeQuantity(itemId, delta) {
     setCart((current) => current.flatMap((item) => {
-      if (item.sku !== sku || item.variant !== variant || item.size !== size) return [item]
+      if (item.id !== itemId) return [item]
       return item.qty + delta > 0 && item.qty + delta <= 20 ? [{ ...item, qty: item.qty + delta }] : []
     }))
   }
 
-  function removeItem(sku, variant, size) {
-    setCart((current) => current.filter((item) =>
-      item.sku !== sku || item.variant !== variant || item.size !== size))
+  function removeItem(itemId) {
+    setCart((current) => current.filter((item) => item.id !== itemId))
   }
 
   function openCheckout() {
@@ -443,6 +494,8 @@ function App() {
     const program = programSelection === 'Others' ? otherProgram : programSelection
     let paymentReceiptPath = null
     let paymentReceiptUploaded = false
+    const designFilePaths = new Map()
+    const uploadedDesignPaths = []
 
     if (programSelection === 'Others' && !otherProgram) {
       setCheckoutError('Please specify your program or affiliation.')
@@ -476,6 +529,34 @@ function App() {
       paymentReceiptPath = `${crypto.randomUUID()}/payment-proof.${extension}`
     }
 
+    for (const item of cart) {
+      const customDesign = item.options?.find((option) => option.file instanceof File)
+      if (!customDesign) continue
+      if (item.sku !== 'PTR-KEY-03' || item.variant !== 'Custom design') {
+        setCheckoutError('Custom design files can only be attached to keychain orders.')
+        setCheckoutBusy(false)
+        return
+      }
+      if (customDesign.file.size === 0 || customDesign.file.size > 5 * 1024 * 1024) {
+        setCheckoutError('The keychain design file must be 5 MB or smaller.')
+        setCheckoutBusy(false)
+        return
+      }
+      const designExtensions = {
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+        'application/pdf': 'pdf',
+      }
+      const extension = designExtensions[customDesign.file.type]
+      if (!extension) {
+        setCheckoutError('Upload the keychain design as a JPG, PNG, WebP, or PDF file.')
+        setCheckoutBusy(false)
+        return
+      }
+      designFilePaths.set(item.id, `${crypto.randomUUID()}/custom-design.${extension}`)
+    }
+
     async function cleanupUploadedReceipt() {
       if (!paymentReceiptUploaded || !paymentReceiptPath) return null
       try {
@@ -488,6 +569,19 @@ function App() {
       } catch (error) {
         return error.message
       }
+    }
+    async function cleanupUploadedDesigns() {
+      if (uploadedDesignPaths.length === 0) return null
+      const { error } = await supabase.storage
+        .from('custom-designs')
+        .remove(uploadedDesignPaths)
+      if (error) return error.message
+      uploadedDesignPaths.length = 0
+      return null
+    }
+    async function cleanupUploadedFiles() {
+      const errors = await Promise.all([cleanupUploadedReceipt(), cleanupUploadedDesigns()])
+      return errors.filter(Boolean).join('; ') || null
     }
 
     const customer = {
@@ -503,6 +597,12 @@ function App() {
       size: item.size || null,
       quantity: item.qty,
       components: item.components,
+      options: item.options?.map((option) => {
+        const path = designFilePaths.get(item.id)
+        return option.file
+          ? { name: option.name, design: option.design, file_path: path }
+          : option
+      }) ?? [],
     }))
     try {
       if (receipt instanceof File && paymentReceiptPath) {
@@ -516,6 +616,22 @@ function App() {
         paymentReceiptUploaded = true
       }
 
+      for (const item of cart) {
+        const customDesign = item.options?.find((option) => option.file instanceof File)
+        const path = designFilePaths.get(item.id)
+        if (!customDesign || !path) continue
+        const { error: designUploadError } = await supabase.storage
+          .from('custom-designs')
+          .upload(path, customDesign.file, { contentType: customDesign.file.type, upsert: false })
+        if (designUploadError) {
+          setCheckoutError(`Could not upload the keychain design: ${designUploadError.message}`)
+          const cleanupError = await cleanupUploadedFiles()
+          if (cleanupError) setCheckoutError((current) => `${current}. Uploaded files could not be cleaned up: ${cleanupError}`)
+          return
+        }
+        uploadedDesignPaths.push(path)
+      }
+
       const { data, error } = await supabase.rpc('create_store_order', {
         p_customer: customer,
         p_payment_method: paymentMethod,
@@ -524,16 +640,10 @@ function App() {
         p_payment_receipt_path: paymentReceiptPath,
       })
       if (error) {
-        if (paymentReceiptUploaded) {
-          const cleanupError = await cleanupUploadedReceipt()
-          setCheckoutError(
-            cleanupError
-              ? `The order was not submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError}`
-              : `The order was not submitted: ${error.message}`,
-          )
-        } else {
-          setCheckoutError(`The order was not submitted: ${error.message}`)
-        }
+        const cleanupError = await cleanupUploadedFiles()
+        setCheckoutError(cleanupError
+          ? `The order was not submitted: ${error.message}. Uploaded files could not be cleaned up: ${cleanupError}`
+          : `The order was not submitted: ${error.message}`)
       } else {
         const savedItems = Array.isArray(data.items) && data.items.length
           ? data.items
@@ -545,7 +655,9 @@ function App() {
             quantity: item.qty,
             unit_price: item.price,
             line_total: item.price * item.qty,
-            selections: item.components,
+            selections: item.components.length
+              ? item.components
+              : item.options.map(({ file: _file, ...option }) => option),
           }))
         setReceipt({
           ...data,
@@ -557,16 +669,10 @@ function App() {
         setCart([])
       }
     } catch (error) {
-      if (paymentReceiptUploaded && paymentReceiptPath) {
-        const cleanupError = await cleanupUploadedReceipt()
-        setCheckoutError(
-          cleanupError
-            ? `The order could not be submitted: ${error.message}. The uploaded receipt could not be cleaned up: ${cleanupError}`
-            : `The order could not be submitted: ${error.message}`,
-        )
-      } else {
-        setCheckoutError(`The order could not be submitted: ${error.message}`)
-      }
+      const cleanupError = await cleanupUploadedFiles()
+      setCheckoutError(cleanupError
+        ? `The order could not be submitted: ${error.message}. Uploaded files could not be cleaned up: ${cleanupError}`
+        : `The order could not be submitted: ${error.message}`)
     } finally {
       setCheckoutBusy(false)
     }
@@ -610,7 +716,7 @@ function App() {
 
         <section className="catalog-section" id="catalog">
           <div className="catalog-heading">
-            <div><span className="eyebrow">DISPENSARY SPECIFICATION REGISTRY</span><h2>PRODUCT CATALOG <span>// RELEASE 01</span></h2></div>
+            <div><span className="eyebrow">DISPENSARY SPECIFICATION REGISTRY</span><h2>PRODUCT CATALOG </h2></div>
             <label className="catalog-search"><Icon>search</Icon><input id="catalog-search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search products or SKU..." /></label>
           </div>
           <div className="catalog-filters" role="group" aria-label="Filter products">

@@ -425,7 +425,23 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .admin-password-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-linecap: round; stroke-linejoin: round; stroke-width: 1.7; }
 .admin-login > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .admin-orders { margin-top: 24px; }
-.admin-orders-title { display: flex; align-items: baseline; justify-content: space-between; }
+.admin-summary-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.admin-summary-header h2, .admin-orders-title h2 { margin: 3px 0 0; font: 600 22px var(--display); }
+.admin-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.admin-summary-card { display: grid; gap: 7px; min-width: 0; padding: 14px; border: 1px solid #e6e1e4; background: white; }
+.admin-summary-card > span { color: var(--muted); font: 9px var(--mono); }
+.admin-summary-card > b { color: var(--pink); font: 700 20px var(--display); overflow-wrap: anywhere; }
+.admin-summary-card > small { color: var(--muted); font: 8px/1.5 var(--mono); }
+.admin-summary-total { border-color: var(--pink); }
+.admin-summary-note { margin: 10px 0 22px; color: var(--muted); font: 9px/1.6 var(--mono); }
+.admin-product-summary { margin: 20px 0 28px; padding: 14px; border: 1px solid #e6e1e4; background: white; }
+.admin-product-summary h3 { margin: 0 0 10px; font: 600 14px var(--display); }
+.admin-product-summary > p { margin: 0; color: var(--muted); font-size: 11px; }
+.admin-product-summary-list { display: grid; gap: 7px; }
+.admin-product-summary-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 8px; background: var(--panel); font-size: 10px; }
+.admin-product-summary-row b { min-width: 0; }
+.admin-product-summary-row span { color: var(--muted); text-align: right; white-space: nowrap; }
+.admin-orders-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .admin-orders-title h2 { font: 600 22px var(--display); }
 .admin-orders-title span { color: var(--pink); font: 600 10px var(--mono); }
 .admin-order { margin: 12px 0; padding: 16px; border: 1px solid #e6e1e4; background: white; }
@@ -450,6 +466,9 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
   .bundle-price-card { min-height: 125px; padding: 11px; }
   .admin-page { padding: 20px 12px 40px; }
   .admin-header { align-items: flex-start; flex-wrap: wrap; }
+  .admin-summary-grid { grid-template-columns: 1fr; }
+  .admin-product-summary-row { align-items: flex-start; flex-direction: column; gap: 4px; }
+  .admin-product-summary-row span { text-align: left; white-space: normal; }
   .admin-order { padding: 11px; }
   .admin-order li, .admin-order-total { font-size: 8px; }
 }

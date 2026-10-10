@@ -17,6 +17,128 @@ function extractStoragePath(rawPath, bucketName) {
   return rawPath.replace(new RegExp(`^${bucketName}/`), '')
 }
 
+async function downloadSummary(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary) {
+  const { jsPDF } = await import('jspdf')
+  const doc = new jsPDF()
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const margin = 40
+  const right = pageWidth - margin
+  const formatPdfMoney = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`
+  let y = 48
+
+  const addPageIfNeeded = (height) => {
+    if (y + height > pageHeight - 48) {
+      doc.addPage()
+      y = 44
+      return true
+    }
+    return false
+  }
+  const drawItemTableHeader = () => {
+    doc.setFillColor(247, 243, 245)
+    doc.rect(margin, y - 13, right - margin, 22, 'F')
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(9)
+    doc.setTextColor(55, 42, 47)
+    doc.text('PRODUCT', margin + 8, y)
+    doc.text('SKU', 300, y)
+    doc.text('UNITS', 405, y, { align: 'right' })
+    doc.text('ORDERS', right - 8, y, { align: 'right' })
+    y += 22
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.setTextColor(178, 28, 104)
+  doc.text('POINTERS MERCH ORDER SUMMARY', margin, y)
+  y += 18
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(9)
+  doc.setTextColor(100, 85, 91)
+  doc.text(`Generated ${new Date().toLocaleString()}`, margin, y)
+  y += 22
+  doc.setFontSize(8)
+  doc.text('All loaded orders are included. Cancelled orders are excluded from active totals.', margin, y)
+  y += 12
+  doc.text('Payment amounts are order totals by selected method, not verified payments received.', margin, y)
+  y += 24
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(55, 42, 47)
+  doc.text('PAYMENT SUMMARY', margin, y)
+  y += 14
+  doc.setFontSize(9)
+  doc.text('PAYMENT METHOD', margin + 8, y)
+  doc.text('ORDERS', 400, y, { align: 'right' })
+  doc.text('ORDER TOTAL', right - 8, y, { align: 'right' })
+  y += 8
+
+  paymentSummary.forEach(({ method, orderCount, total }) => {
+    doc.setDrawColor(230, 225, 228)
+    doc.line(margin, y, right, y)
+    y += 15
+    doc.setFont('helvetica', 'normal')
+    doc.text(method, margin + 8, y)
+    doc.text(String(orderCount), 400, y, { align: 'right' })
+    doc.text(formatPdfMoney(total), right - 8, y, { align: 'right' })
+    y += 8
+  })
+
+  const cancelledTotal = cancelledOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
+  doc.setFillColor(247, 243, 245)
+  doc.rect(margin, y, right - margin, 34, 'F')
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(55, 42, 47)
+  doc.text(`OVERALL ORDER TOTAL (${activeOrders.length} orders)`, margin + 8, y + 14)
+  doc.setTextColor(178, 28, 104)
+  doc.text(formatPdfMoney(orderTotal), right - 8, y + 14, { align: 'right' })
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  doc.setTextColor(100, 85, 91)
+  doc.text(`Cancelled and excluded: ${cancelledOrders.length} orders · ${formatPdfMoney(cancelledTotal)}`, margin + 8, y + 27)
+  y += 52
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(12)
+  doc.setTextColor(55, 42, 47)
+  doc.text('ITEMS ORDERED', margin, y)
+  y += 16
+  drawItemTableHeader()
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(8)
+  productSummary.forEach(({ name, sku, quantity, orderCount }) => {
+    const productLines = doc.splitTextToSize(name, 220)
+    const rowHeight = Math.max(22, productLines.length * 10 + 10)
+    if (addPageIfNeeded(rowHeight + 4)) drawItemTableHeader()
+    doc.setTextColor(55, 42, 47)
+    doc.text(productLines, margin + 8, y + 2)
+    doc.text(String(sku), 300, y + 2)
+    doc.text(String(quantity), 405, y + 2, { align: 'right' })
+    doc.text(String(orderCount), right - 8, y + 2, { align: 'right' })
+    y += rowHeight
+    doc.setDrawColor(230, 225, 228)
+    doc.line(margin, y - 2, right, y - 2)
+  })
+
+  const pageCount = doc.getNumberOfPages()
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page)
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(8)
+    doc.setTextColor(130, 115, 121)
+    doc.text(`Page ${page} of ${pageCount}`, right, pageHeight - 20, { align: 'right' })
+  }
+
+  doc.save(`pointers-order-summary-${new Date().toISOString().slice(0, 10)}.pdf`)
+}
+
 export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
@@ -267,6 +389,39 @@ export default function Admin() {
     )
   })
 
+  const activeOrders = orders.filter((order) => order.status?.toLowerCase() !== 'cancelled')
+  const cancelledOrders = orders.filter((order) => order.status?.toLowerCase() === 'cancelled')
+  const paymentSummary = ['GCash', 'Cash over the counter'].map((method) => {
+    const methodOrders = activeOrders.filter((order) => order.payment_method === method)
+    return {
+      method,
+      orderCount: methodOrders.length,
+      total: methodOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0),
+    }
+  })
+  const orderTotal = activeOrders.reduce((sum, order) => sum + (Number(order.total) || 0), 0)
+  const productSummaryBySku = new Map()
+
+  activeOrders.forEach((order) => {
+    const seenSkus = new Set()
+    order.store_order_items?.forEach((item) => {
+      const sku = item.product_sku || item.product_name || 'Unknown item'
+      const product = productSummaryBySku.get(sku) || {
+        sku,
+        name: item.product_name ? item.product_name.split('(')[0].trim() : 'Unknown item',
+        quantity: 0,
+        orderCount: 0,
+      }
+      product.quantity += Number(item.quantity) || 0
+      if (!seenSkus.has(sku)) {
+        product.orderCount += 1
+        seenSkus.add(sku)
+      }
+      productSummaryBySku.set(sku, product)
+    })
+  })
+  const productSummary = [...productSummaryBySku.values()].sort((a, b) => a.name.localeCompare(b.name))
+
   if (authLoading) return <main className="admin-page"><p>Checking admin session…</p></main>
 
   return (
@@ -348,7 +503,65 @@ export default function Admin() {
         </form>
       ) : (
         <section className="admin-orders">
-          <div className="admin-orders-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+          <div className="admin-summary-header">
+            <div>
+              <span className="eyebrow">ORDER REPORT</span>
+              <h2>ORDER SUMMARY</h2>
+            </div>
+            <button
+              className="button-primary"
+              type="button"
+              onClick={async () => {
+                setError('')
+                try {
+                  await downloadSummary(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary)
+                } catch (downloadError) {
+                  setError(`Could not download order summary: ${downloadError.message}`)
+                }
+              }}
+              disabled={ordersLoading || orders.length === 0}
+            >
+              DOWNLOAD SUMMARY PDF
+            </button>
+          </div>
+
+          <div className="admin-summary-grid">
+            {paymentSummary.map(({ method, orderCount, total }) => (
+              <article className="admin-summary-card" key={method}>
+                <span>{method.toUpperCase()}</span>
+                <b>{formatMoney(total)}</b>
+                <small>{orderCount} {orderCount === 1 ? 'ORDER' : 'ORDERS'} · excludes cancelled</small>
+              </article>
+            ))}
+            <article className="admin-summary-card admin-summary-total">
+              <span>OVERALL ORDER TOTAL</span>
+              <b>{formatMoney(orderTotal)}</b>
+              <small>{activeOrders.length} active {activeOrders.length === 1 ? 'order' : 'orders'}</small>
+            </article>
+          </div>
+
+          <p className="admin-summary-note">
+            These amounts are based on each order’s selected payment method; they do not confirm that payment was received.
+            Cancelled orders are excluded from totals and listed separately in the download.
+          </p>
+
+          <div className="admin-product-summary">
+            <h3>ITEMS ORDERED</h3>
+            {productSummary.length === 0 ? (
+              <p>{ordersLoading ? 'Loading item summary…' : 'No item orders to summarize.'}</p>
+            ) : (
+              <div className="admin-product-summary-list">
+                {productSummary.map(({ sku, name, quantity, orderCount }) => (
+                  <div className="admin-product-summary-row" key={sku}>
+                    <b>{name}</b>
+                    <span>{quantity} {quantity === 1 ? 'unit' : 'units'} · {orderCount} {orderCount === 1 ? 'order' : 'orders'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="admin-orders-title">
             <h2>PRE-ORDERS</h2>
             <input
               type="text"

@@ -6,6 +6,7 @@ import Admin from './components/Admin'
 import {DispatchCountdown} from './components/DispatchCountdown'
 import FaqSection from './components/FaqSection'
 const GCASH_FEE = 5
+const PREORDER_DEADLINE = new Date('2026-10-13T00:00:00+08:00').getTime()
 const productImageFiles = import.meta.glob(
   './assets/*.{avif,gif,jpg,jpeg,png,webp}',
   { eager: true, query: '?url', import: 'default' },
@@ -24,7 +25,7 @@ function Icon({ children, className = '' }) {
   return <span aria-hidden="true" className={`material-symbols-outlined ${className}`}>{children}</span>
 }
 
-function Header({ itemCount, total, onSearch, onCart }) {
+function Header({ itemCount, total, onSearch, onCart, preorderClosed }) {
   return (
     <header className="site-header">
       <div className="system-bar">
@@ -42,7 +43,7 @@ function Header({ itemCount, total, onSearch, onCart }) {
           </span>
         </a>
         <div className="nav-actions">
-          <span className="batch-pill"><i className="status-dot" /> PRE-ORDERS OPEN</span>
+          <span className={`batch-pill ${preorderClosed ? 'batch-pill-closed' : ''}`}><i className="status-dot" /> PRE-ORDERS {preorderClosed ? 'CLOSED' : 'OPEN'}</span>
           <button className="search-trigger" type="button" onClick={onSearch}><Icon>search</Icon><span>SEARCH_SPEC...</span><kbd>⌘K</kbd></button>
           <button className="cart-trigger" type="button" onClick={onCart}>
             <Icon>shopping_bag</Icon><span>CART</span><b>{String(itemCount).padStart(2, '0')}</b><strong>{money(total)}</strong>
@@ -53,7 +54,7 @@ function Header({ itemCount, total, onSearch, onCart }) {
   )
 }
 
-function ProductCard({ product, catalog, addToCart }) {
+function ProductCard({ product, catalog, addToCart, preorderClosed }) {
   const designs = Array.isArray(product.designs) ? product.designs : []
   const sizes = Array.isArray(product.sizes) ? product.sizes : []
   const [selectedDesign, setSelectedDesign] = useState(designs[0]?.name ?? '')
@@ -199,16 +200,16 @@ function ProductCard({ product, catalog, addToCart }) {
           className="button-primary button-small"
           type="button"
           onClick={addSelectedProduct}
-          disabled={isCustomDesign && !customDesignFile}
+          disabled={preorderClosed || (isCustomDesign && !customDesignFile)}
         >
-         ADD TO CART
+         {preorderClosed ? 'PRE-ORDERS CLOSED' : 'ADD TO CART'}
         </button>
       </div>
     </article>
   )
 }
 
-function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
+function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout, preorderClosed }) {
   const count = cart.reduce((sum, item) => sum + item.qty, 0)
   return (
     <aside className="cart-column" id="cart">
@@ -228,11 +229,11 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
               <span>{money(item.price)} each</span>
             </div>
             <div className="cart-item-controls">
-              <button type="button" aria-label={`Remove one ${item.title}`} onClick={() => onQuantity(item.id, -1)}>−</button>
+              <button type="button" aria-label={`Remove one ${item.title}`} disabled={preorderClosed} onClick={() => onQuantity(item.id, -1)}>−</button>
               <b>{item.qty}</b>
-              <button type="button" aria-label={`Add one ${item.title}`} disabled={item.qty >= 20} onClick={() => onQuantity(item.id, 1)}>+</button>
+              <button type="button" aria-label={`Add one ${item.title}`} disabled={preorderClosed || item.qty >= 20} onClick={() => onQuantity(item.id, 1)}>+</button>
               <strong>{money(item.price * item.qty)}</strong>
-              <button className="remove-item" type="button" aria-label={`Remove ${item.title}`} onClick={() => onRemove(item.id)}><Icon>delete</Icon></button>
+              <button className="remove-item" type="button" aria-label={`Remove ${item.title}`} disabled={preorderClosed} onClick={() => onRemove(item.id)}><Icon>delete</Icon></button>
             </div>
             </div>
           ))}
@@ -242,7 +243,7 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
           <div><span>ESTIMATED FULFILLMENT:</span><b>₱0.00 (CAMPUS PICKUP)</b></div>
           <div className="net-total"><span>TOTAL_PAYABLE<small>OFFICIAL INVOICE BATCH #26</small></span><strong>{money(subtotal)}</strong></div>
         </div>
-        <button className="button-primary checkout-button" type="button" disabled={!cart.length} onClick={onCheckout}>PROCEED TO PRE-ORDER RESERVATION <Icon>arrow_forward</Icon></button>
+        <button className="button-primary checkout-button" type="button" disabled={preorderClosed || !cart.length} onClick={onCheckout}>{preorderClosed ? 'PRE-ORDERS CLOSED' : 'PROCEED TO PRE-ORDER RESERVATION'} <Icon>arrow_forward</Icon></button>
         <p className="cart-footnote">SECURE DEPLOYMENT PROTOCOL // CAMPUS PICKUP</p>
       </div>
       <div className="security-note"><b><Icon>fingerprint</Icon> ORDER STATUS</b><p>Student order details are submitted securely to the configured POINTERS store database and visible only to authorized store admins.</p></div>
@@ -250,7 +251,7 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
   )
 }
 
-function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error }) {
+function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error, preorderClosed }) {
   const [paymentMethod, setPaymentMethod] = useState('GCash')
   const [programSelection, setProgramSelection] = useState('')
   const gcashFee = paymentMethod === 'GCash' ? GCASH_FEE : 0
@@ -327,6 +328,11 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
               <button className="button-secondary" type="button" onClick={() => window.print()}>PRINT / SAVE AS PDF</button>
               <button className="button-secondary" type="button" onClick={onClose}>RETURN TO STORE</button>
             </div>
+          </div>
+        ) : preorderClosed ? (
+          <div className="preorder-closed-modal">
+            <h3>Pre-order phase closed</h3>
+            <p>Thank you for your interest in POINTERS merchandise. Pre-orders are no longer being accepted.</p>
           </div>
         ) : (
           <form className="checkout-form" onSubmit={onSubmit}>
@@ -408,7 +414,21 @@ function App() {
   const [receipt, setReceipt] = useState(null)
   const [checkoutBusy, setCheckoutBusy] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
+  const [preorderClosed, setPreorderClosed] = useState(() => Date.now() >= PREORDER_DEADLINE)
   const isAdmin = new URLSearchParams(window.location.search).get('admin') === '1'
+
+  useEffect(() => {
+    const updatePreorderStatus = () => setPreorderClosed(Date.now() >= PREORDER_DEADLINE)
+    updatePreorderStatus()
+    const timer = window.setTimeout(updatePreorderStatus, Math.max(0, PREORDER_DEADLINE - Date.now()))
+    window.addEventListener('focus', updatePreorderStatus)
+    document.addEventListener('visibilitychange', updatePreorderStatus)
+    return () => {
+      window.clearTimeout(timer)
+      window.removeEventListener('focus', updatePreorderStatus)
+      document.removeEventListener('visibilitychange', updatePreorderStatus)
+    }
+  }, [])
 
   useEffect(() => {
     if (!isSupabaseConfigured) return undefined
@@ -452,6 +472,10 @@ function App() {
   })
 
   function addToCart(product, variant, size, components = [], options = []) {
+    if (Date.now() >= PREORDER_DEADLINE) {
+      setPreorderClosed(true)
+      return
+    }
     setCart((current) => [
       ...current,
       {
@@ -480,6 +504,10 @@ function App() {
   }
 
   function openCheckout() {
+    if (Date.now() >= PREORDER_DEADLINE) {
+      setPreorderClosed(true)
+      return
+    }
     setReceipt(null)
     setCheckoutError('')
     setIsCheckoutOpen(true)
@@ -487,6 +515,11 @@ function App() {
 
   async function submitCheckout(event) {
     event.preventDefault()
+    if (Date.now() >= PREORDER_DEADLINE) {
+      setPreorderClosed(true)
+      setCheckoutError('Pre-order phase closed. New orders are no longer being accepted.')
+      return
+    }
     if (!isSupabaseConfigured) {
       setCheckoutError('Online reservations are unavailable until Supabase is configured and the database migration is installed.')
       return
@@ -688,22 +721,30 @@ function App() {
   }
 
   if (isAdmin) return <Admin />
-  const reservationDeadline = "2026-10-12T23:59:59";
+  const reservationDeadline = '2026-10-13T00:00:00+08:00'
   return (
     <>
-      <Header itemCount={itemCount} total={total} onCart={() => document.getElementById('cart')?.scrollIntoView({ behavior: 'smooth' })} onSearch={() => document.getElementById('catalog-search')?.focus()} />
+      <Header itemCount={itemCount} total={total} preorderClosed={preorderClosed} onCart={() => document.getElementById('cart')?.scrollIntoView({ behavior: 'smooth' })} onSearch={() => document.getElementById('catalog-search')?.focus()} />
+      {preorderClosed && (
+        <div className="preorder-closed-banner" role="status">
+          <b>PRE-ORDER PHASE CLOSED</b>
+          <span>Thank you for your interest. We are no longer accepting new orders.</span>
+        </div>
+      )}
       <main id="top">
         <section className="hero-section">
           <div className="hero-copy">
-            <span className="eyebrow"><i className="status-dot" /> PRE-ORDERS ACTIVE</span>
+            <span className="eyebrow"><i className="status-dot" /> PRE-ORDERS {preorderClosed ? 'CLOSED' : 'ACTIVE'}</span>
             <p className="hero-overline">COLLEGE OF INFORMATION &amp; COMPUTING SCIENCES</p>
             <h1>MSU-POINTERS<br /><em>BATCH '26</em> MERCHANDISE</h1>
-            <p className="hero-description">Official limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS. Everyone is reminded that payments must be settled by Monday, October 12, as ordering will begin right after, with priority given to those who have paid via GCash, so those paying over-the-counter should make their payments now at the CICS-Multimedia Room.</p>
-            <div className="hero-actions"><a className="button-primary" href="#catalog">EXPLORE THE CATALOG <Icon>arrow_downward</Icon></a><a className="text-link" href="#bundle-guide">VIEW THE BUNDLES <Icon>arrow_forward</Icon></a></div>
+            <p className="hero-description">Official limited-run merchandise for the computing community of MSU-Marawi. Built for campus life, made by POINTERS. Pre-orders close at 12:00 AM on October 13, 2026 (Philippine time). Payments are due by October 12; those paying over the counter should settle at the CICS-Multimedia Room.</p>
+            {!preorderClosed && <div className="hero-actions"><a className="button-primary" href="#catalog">EXPLORE THE CATALOG <Icon>arrow_downward</Icon></a><a className="text-link" href="#bundle-guide">VIEW THE BUNDLES <Icon>arrow_forward</Icon></a></div>}
           </div>
           
           <div className="hero-status hero-status-error">
-            <DispatchCountdown targetDate={reservationDeadline} />
+            {preorderClosed
+              ? <div className="preorder-closed-status"><b>PRE-ORDER PHASE CLOSED</b><span>New orders are no longer being accepted.</span></div>
+              : <DispatchCountdown targetDate={reservationDeadline} />}
             <div className="dispatch-details">
               <div><span>ORDER PROTOCOL:</span><b>PRE-ORDER ONLY</b></div>
               <div><span>DISPATCH LOCATION:</span><b>CICS-MULTIMEDIA ROOM</b></div>
@@ -734,10 +775,10 @@ function App() {
           <div className="catalog-layout">
             <div className="product-grid">
               {matchingProducts.length
-                ? matchingProducts.map((product) => <ProductCard key={product.sku} product={product} catalog={products} addToCart={addToCart} />)
+                ? matchingProducts.map((product) => <ProductCard key={product.sku} product={product} catalog={products} addToCart={addToCart} preorderClosed={preorderClosed} />)
                 : <p className="no-results">No products match “{query}”. Try another search.</p>}
             </div>
-            <Cart cart={cart} subtotal={subtotal} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={openCheckout} />
+            <Cart cart={cart} subtotal={subtotal} onQuantity={changeQuantity} onRemove={removeItem} onCheckout={openCheckout} preorderClosed={preorderClosed} />
           </div>
         </section>
 
@@ -770,7 +811,7 @@ function App() {
         <a href="?admin=1">ADMIN</a>
         <a href="#top">BACK TO TOP ↑</a>
       </footer>
-      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} total={total} onSubmit={submitCheckout} receipt={receipt} busy={checkoutBusy} error={checkoutError} />
+      <CheckoutModal isOpen={isCheckoutOpen} onClose={() => setIsCheckoutOpen(false)} total={total} onSubmit={submitCheckout} receipt={receipt} busy={checkoutBusy} error={checkoutError} preorderClosed={preorderClosed} />
     </>
   )
 }

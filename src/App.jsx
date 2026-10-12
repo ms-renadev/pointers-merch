@@ -5,6 +5,7 @@ import { normalizeCatalog, PRODUCT_FALLBACK } from './data/products'
 import Admin from './components/Admin'
 import {DispatchCountdown} from './components/DispatchCountdown'
 import FaqSection from './components/FaqSection'
+const GCASH_FEE = 5
 const productImageFiles = import.meta.glob(
   './assets/*.{avif,gif,jpg,jpeg,png,webp}',
   { eager: true, query: '?url', import: 'default' },
@@ -252,6 +253,7 @@ function Cart({ cart, subtotal, onQuantity, onRemove, onCheckout }) {
 function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error }) {
   const [paymentMethod, setPaymentMethod] = useState('GCash')
   const [programSelection, setProgramSelection] = useState('')
+  const gcashFee = paymentMethod === 'GCash' ? GCASH_FEE : 0
   if (!isOpen) return null
 
   function downloadOrderSummary() {
@@ -270,6 +272,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
       ]),
       '',
       `Subtotal: ${money(Number(receipt.subtotal))}`,
+      ...(Number(receipt.gcash_fee) > 0 ? [`GCash fee: ${money(Number(receipt.gcash_fee))}`] : []),
       `Total: ${money(Number(receipt.total))}`,
       `Payment status: ${receipt.payment_method === 'GCash' ? 'Receipt submitted — pending verification' : 'Pay over the counter'}`,
     ]
@@ -300,6 +303,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
               <div><span>PAYMENT METHOD:</span><b>{receipt.payment_method}</b></div>
               <div><span>PAYMENT STATUS:</span><b>{receipt.payment_method === 'GCash' ? 'RECEIPT SUBMITTED · PENDING VERIFICATION' : 'PAY OVER THE COUNTER'}</b></div>
               <div><span>SUBTOTAL:</span><b>{money(Number(receipt.subtotal))}</b></div>
+              {Number(receipt.gcash_fee) > 0 && <div><span>GCASH FEE:</span><b>{money(Number(receipt.gcash_fee))}</b></div>}
               <div><span>ESTIMATED TOTAL:</span><b>{money(Number(receipt.total))}</b></div>
             </div>
             <div className="receipt-items">
@@ -353,7 +357,7 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
               )}
             </div>
             <fieldset className="payment-options"><legend>PAYMENT SETTLEMENT CHANNEL *</legend>
-              <label><input type="radio" name="payment" value="GCash" checked={paymentMethod === 'GCash'} onChange={(event) => setPaymentMethod(event.target.value)} /> GCASH <small>Scan the QR or send to the number below</small></label>
+              <label><input type="radio" name="payment" value="GCash" checked={paymentMethod === 'GCash'} onChange={(event) => setPaymentMethod(event.target.value)} /> GCASH <small>₱5 GCash fee applies. Scan the QR or send the total below.</small></label>
               <label><input type="radio" name="payment" value="Cash over the counter" checked={paymentMethod === 'Cash over the counter'} onChange={(event) => setPaymentMethod(event.target.value)} /> CASH OVER THE COUNTER <small>Pay in person</small></label>
             </fieldset>
             {paymentMethod === 'GCash' && (
@@ -378,7 +382,11 @@ function CheckoutModal({ isOpen, onClose, total, onSubmit, receipt, busy, error 
                 </label>
               </>
             )}
-            <div className="payment-summary"><span>ESTIMATED TOTAL</span><b>{money(total)}</b></div>
+            <div className="payment-summary">
+              <div><span>SUBTOTAL</span><b>{money(total)}</b></div>
+              {gcashFee > 0 && <div><span>GCASH FEE</span><b>{money(gcashFee)}</b></div>}
+              <div className="payment-summary-total"><span>ESTIMATED TOTAL</span><b>{money(total + gcashFee)}</b></div>
+            </div>
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="button-primary confirm-button" type="submit" disabled={busy}>
               {busy ? paymentMethod === 'GCash' ? 'UPLOADING RECEIPT & SAVING…' : 'SAVING RESERVATION…' : 'CONFIRM PRE-ORDER'}
@@ -664,7 +672,8 @@ function App() {
           items: savedItems,
           payment_method: data.payment_method ?? paymentMethod,
           subtotal: data.subtotal ?? total,
-          total: data.total ?? total,
+          gcash_fee: data.gcash_fee ?? (paymentMethod === 'GCash' ? GCASH_FEE : 0),
+          total: data.total ?? total + (paymentMethod === 'GCash' ? GCASH_FEE : 0),
         })
         setCart([])
       }

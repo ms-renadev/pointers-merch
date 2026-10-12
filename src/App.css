@@ -259,8 +259,11 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .payment-proof-field { display: grid; gap: 7px; color: var(--ink); font: 600 9px var(--mono); }
 .payment-proof-field input { width: 100%; padding: 9px; border: 1px solid #d4ced1; background: white; font: 10px 'Plus Jakarta Sans', sans-serif; }
 .payment-proof-field small { color: var(--muted); font: 9px 'Plus Jakarta Sans', sans-serif; }
-.payment-summary { display: flex; justify-content: space-between; padding: 12px; background: var(--panel); color: var(--muted); font: 9px var(--mono); }
-.payment-summary b { color: var(--pink); font: 700 17px var(--display); }
+.payment-summary { display: grid; gap: 9px; padding: 12px; background: var(--panel); color: var(--muted); font: 9px var(--mono); }
+.payment-summary > div { display: flex; justify-content: space-between; gap: 12px; }
+.payment-summary b { color: var(--pink); font: 700 14px var(--display); }
+.payment-summary .payment-summary-total { padding-top: 8px; border-top: 1px solid var(--line); }
+.payment-summary-total b { font-size: 17px; }
 .confirm-button { width: 100%; }
 .receipt { padding: 26px 22px; text-align: center; }
 .receipt-mark { width: 45px; height: 45px; display: grid; place-items: center; margin: 0 auto 13px; color: white; background: var(--pink); }
@@ -426,6 +429,7 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .admin-login > p { margin: 0; color: var(--muted); font-size: 10px; line-height: 1.6; }
 .admin-orders { margin-top: 24px; }
 .admin-summary-header { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 14px; }
+.admin-summary-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .admin-summary-header h2, .admin-orders-title h2 { margin: 3px 0 0; font: 600 22px var(--display); }
 .admin-summary-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .admin-summary-card { display: grid; gap: 7px; min-width: 0; padding: 14px; border: 1px solid #e6e1e4; background: white; }
@@ -466,6 +470,8 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
   .bundle-price-card { min-height: 125px; padding: 11px; }
   .admin-page { padding: 20px 12px 40px; }
   .admin-header { align-items: flex-start; flex-wrap: wrap; }
+  .admin-summary-actions { width: 100%; }
+  .admin-summary-actions > button { flex: 1; }
   .admin-summary-grid { grid-template-columns: 1fr; }
   .admin-product-summary-row { align-items: flex-start; flex-direction: column; gap: 4px; }
   .admin-product-summary-row span { text-align: left; white-space: normal; }

@@ -139,6 +139,26 @@ async function downloadSummary(paymentSummary, activeOrders, orderTotal, cancell
   doc.save(`pointers-order-summary-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
 
+async function downloadExcelWorkbook(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary) {
+  const { createOrderWorkbook } = await import('../lib/orderWorkbook')
+  const workbook = createOrderWorkbook({
+    paymentSummary,
+    activeOrders,
+    orderTotal,
+    cancelledOrders,
+    productSummary,
+  })
+  const file = new Blob([workbook], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  })
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = `pointers-order-report-${new Date().toISOString().slice(0, 10)}.xlsx`
+  link.click()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
 export default function Admin() {
   const [session, setSession] = useState(null)
   const [authLoading, setAuthLoading] = useState(isSupabaseConfigured)
@@ -231,6 +251,7 @@ export default function Admin() {
         payment_receipt_path,
         subtotal,
         discount_amount,
+        gcash_fee,
         total,
         status,
         created_at,
@@ -508,21 +529,38 @@ export default function Admin() {
               <span className="eyebrow">ORDER REPORT</span>
               <h2>ORDER SUMMARY</h2>
             </div>
-            <button
-              className="button-primary"
-              type="button"
-              onClick={async () => {
-                setError('')
-                try {
-                  await downloadSummary(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary)
-                } catch (downloadError) {
-                  setError(`Could not download order summary: ${downloadError.message}`)
-                }
-              }}
-              disabled={ordersLoading || orders.length === 0}
-            >
-              DOWNLOAD SUMMARY PDF
-            </button>
+            <div className="admin-summary-actions">
+              <button
+                className="button-primary"
+                type="button"
+                onClick={async () => {
+                  setError('')
+                  try {
+                    await downloadExcelWorkbook(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary)
+                  } catch (downloadError) {
+                    setError(`Could not download Excel order report: ${downloadError.message}`)
+                  }
+                }}
+                disabled={ordersLoading || orders.length === 0}
+              >
+                DOWNLOAD EXCEL WORKBOOK
+              </button>
+              <button
+                className="button-secondary"
+                type="button"
+                onClick={async () => {
+                  setError('')
+                  try {
+                    await downloadSummary(paymentSummary, activeOrders, orderTotal, cancelledOrders, productSummary)
+                  } catch (downloadError) {
+                    setError(`Could not download order summary: ${downloadError.message}`)
+                  }
+                }}
+                disabled={ordersLoading || orders.length === 0}
+              >
+                DOWNLOAD SUMMARY PDF
+              </button>
+            </div>
           </div>
 
           <div className="admin-summary-grid">
@@ -704,6 +742,12 @@ export default function Admin() {
                 <span>Subtotal {formatMoney(order.subtotal)} · Discount −{formatMoney(order.discount_amount)}</span>
                 <b>Total {formatMoney(order.total)}</b>
               </div>
+              {Number(order.gcash_fee) > 0 && (
+                <div className="admin-order-total">
+                  <span>GCash fee</span>
+                  <b>{formatMoney(order.gcash_fee)}</b>
+                </div>
+              )}
             </article>
           ))}
         </section>

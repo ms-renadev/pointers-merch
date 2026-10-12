@@ -30,8 +30,9 @@ The browser key is a publishable key protected by the database policies. Never p
 8. Run [`supabase/migrations/202610060007_order_receipts_and_payment_repair.sql`](./supabase/migrations/202610060007_order_receipts_and_payment_repair.sql) to repair legacy item-price/variant fields, restore the private payment-proof bucket and policies, and update the order RPC to return the saved itemized order. This final repair migration is also required for checkout to save the itemized student receipt.
 9. Run [`supabase/migrations/202610080001_admin_usernames_and_roles.sql`](./supabase/migrations/202610080001_admin_usernames_and_roles.sql) to add the admin username and role columns used by the admin sign-in and role permissions.
 10. Run [`supabase/migrations/202610100001_gcash_fee.sql`](./supabase/migrations/202610100001_gcash_fee.sql) after the other migrations to add the ₱5 GCash fee to new GCash orders. The fee is applied once per order, included in the saved total, and does not apply to cash orders or change existing orders.
-11. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
-12. In **Authentication → Users**, create an Auth user for each account email below if it does not already exist. Set its password in Supabase; do not insert users or passwords into `auth.users` using SQL.
+11. Run [`supabase/migrations/202610120001_store_order_item_created_at.sql`](./supabase/migrations/202610120001_store_order_item_created_at.sql) if `store_order_items` was created by an older schema and is missing its `created_at` column. This column is used to return order items in a stable order from checkout.
+12. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
+13. In **Authentication → Users**, create an Auth user for each account email below if it does not already exist. Set its password in Supabase; do not insert users or passwords into `auth.users` using SQL.
 
    | Role | Username | Auth email |
    | --- | --- | --- |
@@ -40,7 +41,7 @@ The browser key is a publishable key protected by the database policies. Never p
    | Finance | `financecommittee` | `financecommittee@pointers.internal` |
    | Assistant | `assistantofficer` | `assistantofficer@pointers.internal` |
 
-13. After creating the Auth users, run this once in Supabase SQL Editor. It checks that every listed email exists before adding/updating their admin mapping and role:
+14. After creating the Auth users, run this once in Supabase SQL Editor. It checks that every listed email exists before adding/updating their admin mapping and role:
 
    ```sql
    do $$
@@ -80,7 +81,7 @@ The browser key is a publishable key protected by the database policies. Never p
    $$;
    ```
 
-13. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with either the username above or the corresponding full email address, plus the password set for that Auth user.
+15. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with either the username above or the corresponding full email address, plus the password set for that Auth user.
 
 If sign-in itself reports **“Database error querying schema”**, the request is failing inside Supabase Auth before `store_admins` is checked. The `store_admins` SQL above cannot fix that Auth service error; check the Supabase Dashboard **Logs → Auth** and **Logs → Postgres** at the time of the failed attempt. Do not change or insert rows directly into `auth.users` to reset a password; use the Supabase Dashboard password-reset flow.
 

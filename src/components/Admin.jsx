@@ -22,6 +22,14 @@ function getClaimProgress(order) {
   return { total, claimed, status }
 }
 
+function getPaymentProgress(order) {
+  const paidCents = Math.round((Number(order.amount_paid) || 0) * 100)
+  const totalCents = Math.round((Number(order.total) || 0) * 100)
+  const balanceCents = Math.max(0, totalCents - paidCents)
+  const status = paidCents === 0 ? 'unpaid' : balanceCents === 0 ? 'paid' : 'partial'
+  return { paid: paidCents / 100, balance: balanceCents / 100, status }
+}
+
 function escapeHtml(value) {
   return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;')
     .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
@@ -82,6 +90,10 @@ async function downloadSummary(paymentSummary, activeOrders, orderTotal, cancell
   const pageHeight = doc.internal.pageSize.getHeight()
   const margin = 40
   const right = pageWidth - margin
+  const paymentsRecorded = activeOrders.reduce((sum, order) => sum + (Number(order.amount_paid) || 0), 0)
+  const remainingBalance = activeOrders.reduce((sum, order) => (
+    sum + Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0))
+  ), 0)
   const formatPdfMoney = (value) => `PHP ${(Number(value) || 0).toLocaleString('en-PH', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -122,7 +134,7 @@ async function downloadSummary(paymentSummary, activeOrders, orderTotal, cancell
   doc.setFontSize(8)
   doc.text('All loaded orders are included. Cancelled orders are excluded from active totals.', margin, y)
   y += 12
-  doc.text('Payment amounts are order totals by selected method, not verified payments received.', margin, y)
+  doc.text('Payment method reflects checkout selection; recorded payments are admin-entered amounts.', margin, y)
   y += 24
 
   doc.setFont('helvetica', 'bold')
@@ -161,6 +173,14 @@ async function downloadSummary(paymentSummary, activeOrders, orderTotal, cancell
   doc.setTextColor(100, 85, 91)
   doc.text(`Cancelled and excluded: ${cancelledOrders.length} orders · ${formatPdfMoney(cancelledTotal)}`, margin + 8, y + 27)
   y += 52
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(10)
+  doc.setTextColor(55, 42, 47)
+  doc.text(`PAYMENTS RECORDED: ${formatPdfMoney(paymentsRecorded)}`, margin + 8, y)
+  doc.setTextColor(138, 77, 0)
+  doc.text(`REMAINING BALANCE: ${formatPdfMoney(remainingBalance)}`, right - 8, y, { align: 'right' })
+  y += 24
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(12)
@@ -229,6 +249,7 @@ export default function Admin() {
   const [claimFilter, setClaimFilter] = useState('all')
   const [selectedOrderIds, setSelectedOrderIds] = useState([])
   const [noteDrafts, setNoteDrafts] = useState({})
+  const [paymentDrafts, setPaymentDrafts] = useState({})
   const [loadedForUser, setLoadedForUser] = useState('')
   const [error, setError] = useState(isSupabaseConfigured ? '' : 'Configure Supabase before opening the admin dashboard.')
   const [busyOrder, setBusyOrder] = useState('')
@@ -319,11 +340,19 @@ export default function Admin() {
         discount_amount,
         gcash_fee,
         total,
+        amount_paid,
         status,
         created_at,
         store_order_admin_notes (
           id,
           note,
+          officer_name,
+          created_at
+        ),
+        store_order_payments (
+          id,
+          amount,
+          amount_paid_after,
           officer_name,
           created_at
         ),
@@ -464,6 +493,34 @@ export default function Admin() {
     setBusyOrder('')
   }
 
+  async function recordPayment(orderId) {
+    const amount = Number(paymentDrafts[orderId])
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setError('Enter a payment amount greater than zero.')
+      return
+    }
+
+    setBusyOrder(orderId)
+    setError('')
+    const { data, error: insertError } = await supabase
+      .from('store_order_payments')
+      .insert({ order_id: orderId, amount })
+      .select('id, amount, amount_paid_after, officer_name, created_at')
+      .single()
+
+    if (insertError) {
+      setError(`Could not record payment: ${insertError.message}`)
+    } else {
+      setOrders((current) => current.map((order) => order.id !== orderId ? order : {
+        ...order,
+        amount_paid: data.amount_paid_after,
+        store_order_payments: [data, ...(order.store_order_payments ?? [])],
+      }))
+      setPaymentDrafts((current) => ({ ...current, [orderId]: '' }))
+    }
+    setBusyOrder('')
+  }
+
   async function markSelectedAsClaimed() {
     const selectedOrders = orders.filter((order) => (
       selectedOrderIds.includes(order.id) && order.status?.toLowerCase() !== 'cancelled'
@@ -564,7 +621,9 @@ export default function Admin() {
       o.college?.toLowerCase().includes(q)
     )
     const matchesClaimFilter = claimFilter === 'all'
-      || (claimFilter === 'pending' && o.status?.toLowerCase() === 'pending')
+      || (claimFilter === 'pending'
+        && o.status?.toLowerCase() !== 'cancelled'
+        && (o.status?.toLowerCase() === 'pending' || getPaymentProgress(o).balance > 0))
       || (claimFilter === 'partial' && o.status?.toLowerCase() !== 'cancelled' && getClaimProgress(o).status === 'partial')
       || (claimFilter === 'claimed' && o.status?.toLowerCase() !== 'cancelled' && getClaimProgress(o).status === 'claimed')
     return matchesSearch && matchesClaimFilter
@@ -745,7 +804,7 @@ export default function Admin() {
           </div>
 
           <p className="admin-summary-note">
-            These amounts are based on each order’s selected payment method; they do not confirm that payment was received.
+            The selected checkout payment method does not confirm receipt. Payments recorded per order are entered by admins, and remaining balances use those entries.
             Cancelled orders are excluded from totals and listed separately in the download.
           </p>
 
@@ -796,7 +855,10 @@ export default function Admin() {
               const count = value === 'all'
                 ? orders.length
                 : value === 'pending'
-                  ? orders.filter((order) => order.status?.toLowerCase() === 'pending').length
+                  ? orders.filter((order) => (
+                    order.status?.toLowerCase() !== 'cancelled'
+                    && (order.status?.toLowerCase() === 'pending' || getPaymentProgress(order).balance > 0)
+                  )).length
                   : orders.filter((order) => (
                     order.status?.toLowerCase() !== 'cancelled'
                     && getClaimProgress(order).status === value
@@ -833,6 +895,7 @@ export default function Admin() {
 
           {filteredOrders.map((order) => {
             const progress = getClaimProgress(order)
+            const paymentProgress = getPaymentProgress(order)
             const isCancelled = order.status?.toLowerCase() === 'cancelled'
             return (
             <article className="admin-order" key={order.id}>
@@ -844,6 +907,11 @@ export default function Admin() {
                     {isCancelled ? 'CANCELLED' : progress.status === 'partial' ? 'PARTIALLY CLAIMED' : progress.status === 'claimed' ? 'FULLY CLAIMED' : 'UNCLAIMED'}
                     {!isCancelled && ` · ${progress.claimed}/${progress.total}`}
                   </span>
+                  {!isCancelled && (
+                    <span className={`admin-payment-badge is-${paymentProgress.status}`}>
+                      {paymentProgress.status === 'paid' ? 'PAID' : paymentProgress.status === 'partial' ? 'PARTIALLY PAID' : 'UNPAID'}
+                    </span>
+                  )}
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                   {canUpdateStatus && !isCancelled && (
@@ -1001,6 +1069,59 @@ export default function Admin() {
                   <b>{formatMoney(order.gcash_fee)}</b>
                 </div>
               )}
+              <section className="admin-payment-tracking" aria-label={`Payment details for ${order.reference_code}`}>
+                <div className="admin-order-total">
+                  <span>Original order total</span>
+                  <b>{formatMoney(order.total)}</b>
+                </div>
+                <div className="admin-order-total">
+                  <span>Payments recorded</span>
+                  <b>{formatMoney(paymentProgress.paid)}</b>
+                </div>
+                <div className="admin-order-total admin-payment-balance">
+                  <span>Remaining balance</span>
+                  <b>{formatMoney(paymentProgress.balance)}</b>
+                </div>
+                {(order.store_order_payments ?? []).length > 0 && (
+                  <ul className="admin-payment-history">
+                    {[...(order.store_order_payments ?? [])]
+                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                      .map((payment) => (
+                        <li key={payment.id}>
+                          <b>{formatMoney(payment.amount)}</b>
+                          <span>{new Date(payment.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} · {payment.officer_name}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                {canUpdateStatus && !isCancelled && paymentProgress.balance > 0 && (
+                  <div className="admin-payment-compose">
+                    <label>
+                      RECORD PAYMENT
+                      <input
+                        type="number"
+                        min="0.01"
+                        max={paymentProgress.balance}
+                        step="0.01"
+                        inputMode="decimal"
+                        placeholder={`Up to ${formatMoney(paymentProgress.balance)}`}
+                        aria-label={`Partial payment amount for ${order.reference_code}`}
+                        value={paymentDrafts[order.id] ?? ''}
+                        onChange={(event) => setPaymentDrafts((current) => ({ ...current, [order.id]: event.target.value }))}
+                        disabled={busyOrder === order.id || busyOrder === '__bulk__'}
+                      />
+                    </label>
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={busyOrder === order.id || busyOrder === '__bulk__' || !paymentDrafts[order.id]}
+                      onClick={() => recordPayment(order.id)}
+                    >
+                      SAVE PAYMENT
+                    </button>
+                  </div>
+                )}
+              </section>
               <section className="admin-order-notes" aria-label={`Admin notes for ${order.reference_code}`}>
                 <h3>ADMIN NOTES</h3>
                 {(order.store_order_admin_notes ?? []).length === 0 ? (

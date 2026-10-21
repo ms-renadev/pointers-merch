@@ -33,8 +33,9 @@ The browser key is a publishable key protected by the database policies. Never p
 11. Run [`supabase/migrations/202610120001_store_order_item_created_at.sql`](./supabase/migrations/202610120001_store_order_item_created_at.sql) if `store_order_items` was created by an older schema and is missing its `created_at` column. This column is used to return order items in a stable order from checkout.
 12. Run [`supabase/migrations/202610120002_preorder_closure.sql`](./supabase/migrations/202610120002_preorder_closure.sql) to reject new orders in the database starting October 13, 2026 at 12:00 AM Philippine time. The storefront also displays a closed notice and disables ordering at that deadline.
 13. Run [`supabase/migrations/202610210001_claim_tracking_and_notes.sql`](./supabase/migrations/202610210001_claim_tracking_and_notes.sql) to enable per-item partial claiming, timestamped officer-attributed admin notes, and the bulk claim action.
-14. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
-15. In **Authentication → Users**, create an Auth user for each account email below if it does not already exist. Set its password in Supabase; do not insert users or passwords into `auth.users` using SQL.
+14. Run [`supabase/migrations/202610210002_order_payment_tracking.sql`](./supabase/migrations/202610210002_order_payment_tracking.sql) to enable partial payment records and calculate each order’s paid amount and remaining balance. The original subtotal and order total are preserved; admins add payments incrementally, and the database rejects payments above the remaining balance.
+15. The schema migration creates and seeds `store_products`, `store_product_variants`, `store_orders`, and `store_order_items`, leaving any older generic `products` or `orders` tables untouched. It calculates prices on the database and enables row-level security. Public users can read active store products and submit orders only through the validation function. Student contact details and orders are readable only by designated admins.
+16. In **Authentication → Users**, create an Auth user for each account email below if it does not already exist. Set its password in Supabase; do not insert users or passwords into `auth.users` using SQL.
 
    | Role | Username | Auth email |
    | --- | --- | --- |
@@ -43,7 +44,7 @@ The browser key is a publishable key protected by the database policies. Never p
    | Finance | `financecommittee` | `financecommittee@pointers.internal` |
    | Assistant | `assistantofficer` | `assistantofficer@pointers.internal` |
 
-16. After creating the Auth users, run this once in Supabase SQL Editor. It checks that every listed email exists before adding/updating their admin mapping and role:
+17. After creating the Auth users, run this once in Supabase SQL Editor. It checks that every listed email exists before adding/updating their admin mapping and role:
 
    ```sql
    do $$
@@ -83,13 +84,13 @@ The browser key is a publishable key protected by the database policies. Never p
    $$;
    ```
 
-17. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with either the username above or the corresponding full email address, plus the password set for that Auth user.
+18. Open `/` in the browser and use the **ADMIN** link in the footer. Sign in with either the username above or the corresponding full email address, plus the password set for that Auth user.
 
 If sign-in itself reports **“Database error querying schema”**, the request is failing inside Supabase Auth before `store_admins` is checked. The `store_admins` SQL above cannot fix that Auth service error; check the Supabase Dashboard **Logs → Auth** and **Logs → Postgres** at the time of the failed attempt. Do not change or insert rows directly into `auth.users` to reset a password; use the Supabase Dashboard password-reset flow.
 
 If the database is not configured or the migration has not been run, the storefront uses the spreadsheet-based fallback catalog. It does not display a successful order receipt unless the reservation is actually saved.
 
-All signed-in admin roles can download the **Excel workbook** from the order summary. It contains an overall order and merchandise summary, plus separate GCash and cash tabs with customer and order details. Cancelled orders are shown separately and excluded from active totals. GCash orders include whether a receipt was submitted; this does not indicate that payment has been verified. The workbook contains customer contact details, so store it securely.
+All signed-in admin roles can download the **Excel workbook** from the order summary. It contains an overall order and merchandise summary, plus separate GCash and cash tabs with customer and order details. Cancelled orders are shown separately and excluded from active totals. Payment totals and balances include amounts entered by admins; GCash receipt submission does not indicate payment has been verified. The workbook contains customer contact details, so store it securely.
 
 ## Payment options
 

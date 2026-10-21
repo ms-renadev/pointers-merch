@@ -98,6 +98,8 @@ function customerRows(orders) {
       'Discount (PHP)',
       'GCash fee (PHP)',
       'Order total (PHP)',
+      'Payments recorded (PHP)',
+      'Remaining balance (PHP)',
       'Items and selections',
     ],
     ...orders.map((order) => [
@@ -115,6 +117,8 @@ function customerRows(orders) {
       Number(order.discount_amount) || 0,
       Number(order.gcash_fee) || 0,
       Number(order.total) || 0,
+      Number(order.amount_paid) || 0,
+      Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0)),
       orderItems(order),
     ]),
   ]
@@ -126,7 +130,7 @@ export function createOrderWorkbook({ activeOrders, cancelledOrders, paymentSumm
     ['POINTERS MERCH ORDER SUMMARY'],
     ['Generated', new Date().toLocaleString()],
     ['Cancelled orders are excluded from active totals and payment-method tabs; their count and order total are reported separately.'],
-    ['Payment method reflects the method selected at checkout; it does not confirm that payment was received.'],
+    ['Payment method reflects checkout selection. Payments recorded and remaining balance reflect amounts entered by store admins.'],
     [],
     ['OVERALL TOTALS'],
     ['Metric', 'Value'],
@@ -136,11 +140,13 @@ export function createOrderWorkbook({ activeOrders, cancelledOrders, paymentSumm
     ['Discounts (PHP)', sum(activeOrders, 'discount_amount')],
     ['GCash fees (PHP)', sum(activeOrders, 'gcash_fee')],
     ['Order total (PHP)', orderTotal],
+    ['Payments recorded (PHP)', sum(activeOrders, 'amount_paid')],
+    ['Remaining balance (PHP)', activeOrders.reduce((total, order) => total + Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0)), 0)],
     ['Cancelled orders', cancelledOrders.length],
     ['Cancelled order total (PHP)', sum(cancelledOrders, 'total')],
     [],
     ['PAYMENT METHOD SUMMARY'],
-    ['Payment method', 'Active orders', 'Subtotal (PHP)', 'Discounts (PHP)', 'GCash fees (PHP)', 'Order total (PHP)'],
+    ['Payment method', 'Active orders', 'Subtotal (PHP)', 'Discounts (PHP)', 'GCash fees (PHP)', 'Order total (PHP)', 'Payments recorded (PHP)', 'Remaining balance (PHP)'],
     ...paymentSummary.map(({ method, orderCount, total }) => {
       const methodOrders = activeOrders.filter((order) => order.payment_method === method)
       return [
@@ -150,6 +156,8 @@ export function createOrderWorkbook({ activeOrders, cancelledOrders, paymentSumm
         sum(methodOrders, 'discount_amount'),
         sum(methodOrders, 'gcash_fee'),
         total,
+        sum(methodOrders, 'amount_paid'),
+        methodOrders.reduce((balance, order) => balance + Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0)), 0),
       ]
     }),
     [],
@@ -162,7 +170,7 @@ export function createOrderWorkbook({ activeOrders, cancelledOrders, paymentSumm
 
   return createWorkbook([
     { name: 'Order Summary', rows: summaryRows },
-    { name: 'GCash Orders', rows: [['GCash orders with customer details; cancelled orders excluded. Receipt submission does not indicate payment has been verified.'], ['Active orders', gcashOrders.length], ['Order total (PHP)', sum(gcashOrders, 'total')], [], ...customerRows(gcashOrders)] },
-    { name: 'Cash Orders', rows: [['Cash over-the-counter orders with customer details; cancelled orders excluded.'], ['Active orders', cashOrders.length], ['Order total (PHP)', sum(cashOrders, 'total')], [], ...customerRows(cashOrders)] },
+    { name: 'GCash Orders', rows: [['GCash orders with customer details; cancelled orders excluded. Receipt submission does not indicate payment has been verified. Recorded payments are admin-entered.'], ['Active orders', gcashOrders.length], ['Order total (PHP)', sum(gcashOrders, 'total')], ['Payments recorded (PHP)', sum(gcashOrders, 'amount_paid')], ['Remaining balance (PHP)', gcashOrders.reduce((balance, order) => balance + Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0)), 0)], [], ...customerRows(gcashOrders)] },
+    { name: 'Cash Orders', rows: [['Cash over-the-counter orders with customer details; cancelled orders excluded. Recorded payments are admin-entered.'], ['Active orders', cashOrders.length], ['Order total (PHP)', sum(cashOrders, 'total')], ['Payments recorded (PHP)', sum(cashOrders, 'amount_paid')], ['Remaining balance (PHP)', cashOrders.reduce((balance, order) => balance + Math.max(0, (Number(order.total) || 0) - (Number(order.amount_paid) || 0)), 0)], [], ...customerRows(cashOrders)] },
   ])
 }

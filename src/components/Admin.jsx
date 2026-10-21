@@ -3,9 +3,67 @@ import { isSupabaseConfigured, supabase } from '../lib/supabase'
 import '../App.css'
 
 const orderStatuses = ['PENDING', 'CONFIRMED', 'FULFILLED', 'CANCELLED']
+const claimFilters = [
+  { value: 'all', label: 'ALL ORDERS' },
+  { value: 'pending', label: 'UNPAID / PENDING' },
+  { value: 'partial', label: 'PARTIALLY CLAIMED' },
+  { value: 'claimed', label: 'FULLY CLAIMED' },
+]
 
 function formatMoney(value) {
   return new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP' }).format(Number(value) || 0)
+}
+
+function getClaimProgress(order) {
+  const items = order.store_order_items ?? []
+  const total = items.reduce((sum, item) => sum + (Number(item.quantity) || 0), 0)
+  const claimed = items.reduce((sum, item) => sum + (Number(item.claimed_quantity) || 0), 0)
+  const status = claimed === 0 ? 'unclaimed' : claimed >= total ? 'claimed' : 'partial'
+  return { total, claimed, status }
+}
+
+function escapeHtml(value) {
+  return String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;')
+}
+
+function printClaimingSheet(orders) {
+  const printWindow = window.open('', '_blank')
+  if (!printWindow) throw new Error('Allow pop-ups to print the claiming sheet.')
+
+  const rows = orders.map((order) => {
+    const { claimed, total } = getClaimProgress(order)
+    const remainingItems = (order.store_order_items ?? [])
+      .filter((item) => Number(item.quantity) > Number(item.claimed_quantity || 0))
+      .map((item) => {
+        const variant = typeof item.variant === 'string'
+          ? item.variant
+          : item.variant?.color || item.variant?.size || ''
+        const details = [item.design_name || variant, item.size ? `Size ${item.size}` : '']
+          .filter(Boolean)
+          .join(' · ')
+        const selections = Array.isArray(item.selections)
+          ? item.selections.map((selection) => [selection.name, selection.design || selection.version, selection.color, selection.size].filter(Boolean).join(': ')).filter(Boolean).join(' / ')
+          : ''
+        return `${Number(item.quantity) - Number(item.claimed_quantity || 0)} × ${item.product_name || item.product_sku || 'Item'}${details ? ` · ${details}` : ''}${selections ? ` · ${selections}` : ''}`
+      })
+      .join('<br>')
+    return `<tr><td>${escapeHtml(order.reference_code)}</td><td>${escapeHtml(order.customer_name)}</td><td>${escapeHtml(order.phone)}</td><td>${claimed}/${total}</td><td>${remainingItems}</td><td></td></tr>`
+  }).join('')
+
+  printWindow.opener = null
+  printWindow.document.open()
+  printWindow.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>POINTERS Claiming Sheet</title><style>
+    body{font:12px Arial,sans-serif;color:#222;margin:24px}h1{font-size:18px}p{color:#555}
+    table{width:100%;border-collapse:collapse}th,td{border:1px solid #aaa;padding:8px;text-align:left;vertical-align:top}
+    th{background:#f3edf0}td:last-child{width:14%}@media print{body{margin:10mm}}
+  </style></head><body><h1>POINTERS MERCH · CLAIMING SHEET</h1>
+    <p>Partially claimed orders · ${escapeHtml(new Date().toLocaleString())}</p>
+    <table><thead><tr><th>Order ref</th><th>Customer</th><th>Phone</th><th>Claimed</th><th>Remaining items</th><th>Released / signature</th></tr></thead><tbody>${rows}</tbody></table>
+  </body></html>`)
+  printWindow.document.close()
+  printWindow.focus()
+  window.setTimeout(() => printWindow.print(), 250)
 }
 
 function extractStoragePath(rawPath, bucketName) {
@@ -165,8 +223,12 @@ export default function Admin() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [adminRole, setAdminRole] = useState('assistant')
+  const [adminUsername, setAdminUsername] = useState('')
   const [orders, setOrders] = useState([])
   const [searchQuery, setSearchQuery] = useState('')
+  const [claimFilter, setClaimFilter] = useState('all')
+  const [selectedOrderIds, setSelectedOrderIds] = useState([])
+  const [noteDrafts, setNoteDrafts] = useState({})
   const [loadedForUser, setLoadedForUser] = useState('')
   const [error, setError] = useState(isSupabaseConfigured ? '' : 'Configure Supabase before opening the admin dashboard.')
   const [busyOrder, setBusyOrder] = useState('')
@@ -191,6 +253,7 @@ export default function Admin() {
           setLoadedForUser('')
           setIsAdmin(false)
           setAdminRole('assistant')
+          setAdminUsername('')
         } else {
           await verifyAdminAccess(nextSession.user.id)
         }
@@ -216,19 +279,22 @@ export default function Admin() {
   async function verifyAdminAccess(userId) {
     const { data, error: adminErr } = await supabase
       .from('store_admins')
-      .select('user_id, role')
+      .select('user_id, role, username')
       .eq('user_id', userId)
       .maybeSingle()
 
     if (adminErr) {
       setIsAdmin(false)
       setError(`Could not verify admin access: ${adminErr.message}`)
+      setAdminUsername('')
     } else if (!data) {
       setIsAdmin(false)
       setError('Access denied: This Supabase account is not listed in store_admins.')
+      setAdminUsername('')
     } else {
       setIsAdmin(true)
       setAdminRole(data.role?.toLowerCase() || 'assistant')
+      setAdminUsername(data.username?.trim() || data.role || 'Store admin')
       setError('')
     }
   }
@@ -255,6 +321,12 @@ export default function Admin() {
         total,
         status,
         created_at,
+        store_order_admin_notes (
+          id,
+          note,
+          officer_name,
+          created_at
+        ),
         store_order_items (
           id,
           product_sku,
@@ -265,7 +337,8 @@ export default function Admin() {
           quantity,
           unit_price,
           line_total,
-          selections
+          selections,
+          claimed_quantity
         )
       `)
       .order('created_at', { ascending: false })
@@ -337,6 +410,86 @@ export default function Admin() {
     setBusyOrder('')
   }
 
+  async function updateClaimedQuantity(orderId, itemId, claimedQuantity) {
+    if (!canUpdateStatus) {
+      setError('Permission denied: You do not have access to update item claims.')
+      return
+    }
+
+    setBusyOrder(itemId)
+    setError('')
+    const { error: updateError } = await supabase
+      .from('store_order_items')
+      .update({ claimed_quantity: Number(claimedQuantity) })
+      .eq('id', itemId)
+      .eq('order_id', orderId)
+
+    if (updateError) {
+      setError(`Could not update item claim: ${updateError.message}`)
+    } else {
+      setOrders((current) => current.map((order) => order.id !== orderId ? order : {
+        ...order,
+        store_order_items: order.store_order_items.map((item) => (
+          item.id === itemId ? { ...item, claimed_quantity: Number(claimedQuantity) } : item
+        )),
+      }))
+    }
+    setBusyOrder('')
+  }
+
+  async function addAdminNote(orderId) {
+    const note = noteDrafts[orderId]?.trim()
+    if (!note) {
+      setError('Write a note before saving.')
+      return
+    }
+
+    setBusyOrder(orderId)
+    setError('')
+    const { data, error: insertError } = await supabase
+      .from('store_order_admin_notes')
+      .insert({ order_id: orderId, note })
+      .select('id, note, officer_name, created_at')
+      .single()
+
+    if (insertError) {
+      setError(`Could not save admin note: ${insertError.message}`)
+    } else {
+      setOrders((current) => current.map((order) => order.id !== orderId ? order : {
+        ...order,
+        store_order_admin_notes: [data, ...(order.store_order_admin_notes ?? [])],
+      }))
+      setNoteDrafts((current) => ({ ...current, [orderId]: '' }))
+    }
+    setBusyOrder('')
+  }
+
+  async function markSelectedAsClaimed() {
+    const selectedOrders = orders.filter((order) => (
+      selectedOrderIds.includes(order.id) && order.status?.toLowerCase() !== 'cancelled'
+    ))
+    if (!selectedOrders.length) return
+
+    setBusyOrder('__bulk__')
+    setError('')
+    const { error: claimError } = await supabase.rpc('claim_store_orders', {
+      p_order_ids: selectedOrders.map((order) => order.id),
+    })
+
+    if (claimError) {
+      setError(`Could not mark selected orders as claimed: ${claimError.message}`)
+    } else {
+      const selectedIds = new Set(selectedOrders.map((order) => order.id))
+      setOrders((current) => current.map((order) => (
+        selectedIds.has(order.id)
+          ? { ...order, store_order_items: order.store_order_items.map((item) => ({ ...item, claimed_quantity: item.quantity })) }
+          : order
+      )))
+      setSelectedOrderIds([])
+    }
+    setBusyOrder('')
+  }
+
   async function deleteOrder(orderId, referenceCode) {
     if (!canDeleteOrders) {
       setError('Permission denied: Only Secretariat and Executive officers can delete orders.')
@@ -369,6 +522,7 @@ export default function Admin() {
       }
 
       setOrders((current) => current.filter((order) => order.id !== orderId))
+      setSelectedOrderIds((current) => current.filter((id) => id !== orderId))
     } catch (err) {
       setError(err.message)
     } finally {
@@ -399,16 +553,28 @@ export default function Admin() {
     }
   }
 
-  // Filter orders by search query
   const filteredOrders = orders.filter((o) => {
     const q = searchQuery.toLowerCase()
-    return (
+    const matchesSearch = (
       o.reference_code?.toLowerCase().includes(q) ||
       o.customer_name?.toLowerCase().includes(q) ||
       o.program?.toLowerCase().includes(q) ||
-      o.email?.toLowerCase().includes(q)
+      o.email?.toLowerCase().includes(q) ||
+      o.phone?.toLowerCase().includes(q) ||
+      o.college?.toLowerCase().includes(q)
     )
+    const matchesClaimFilter = claimFilter === 'all'
+      || (claimFilter === 'pending' && o.status?.toLowerCase() === 'pending')
+      || (claimFilter === 'partial' && o.status?.toLowerCase() !== 'cancelled' && getClaimProgress(o).status === 'partial')
+      || (claimFilter === 'claimed' && o.status?.toLowerCase() !== 'cancelled' && getClaimProgress(o).status === 'claimed')
+    return matchesSearch && matchesClaimFilter
   })
+  const partiallyClaimedOrders = orders.filter((order) => (
+    order.status?.toLowerCase() !== 'cancelled' && getClaimProgress(order).status === 'partial'
+  ))
+  const availableSelectedOrders = orders.filter((order) => (
+    selectedOrderIds.includes(order.id) && order.status?.toLowerCase() !== 'cancelled'
+  ))
 
   const activeOrders = orders.filter((order) => order.status?.toLowerCase() !== 'cancelled')
   const cancelledOrders = orders.filter((order) => order.status?.toLowerCase() === 'cancelled')
@@ -609,23 +775,97 @@ export default function Admin() {
               style={{ padding: '6px 12px', borderRadius: '4px', border: '1px solid #ccc', minWidth: '240px' }}
             />
             <span>{ordersLoading ? 'LOADING…' : `${filteredOrders.length} ORDERS`}</span>
+            <button
+              className="button-secondary"
+              type="button"
+              onClick={() => {
+                try {
+                  printClaimingSheet(partiallyClaimedOrders)
+                } catch (printError) {
+                  setError(`Could not print claiming sheet: ${printError.message}`)
+                }
+              }}
+              disabled={ordersLoading || partiallyClaimedOrders.length === 0}
+            >
+              PRINT PARTIAL CLAIMS ({partiallyClaimedOrders.length})
+            </button>
           </div>
+
+          <nav className="admin-claim-filters" aria-label="Filter orders by claim status">
+            {claimFilters.map(({ value, label }) => {
+              const count = value === 'all'
+                ? orders.length
+                : value === 'pending'
+                  ? orders.filter((order) => order.status?.toLowerCase() === 'pending').length
+                  : orders.filter((order) => (
+                    order.status?.toLowerCase() !== 'cancelled'
+                    && getClaimProgress(order).status === value
+                  )).length
+              return (
+                <button
+                  className={claimFilter === value ? 'admin-claim-filter is-active' : 'admin-claim-filter'}
+                  type="button"
+                  key={value}
+                  aria-pressed={claimFilter === value}
+                  onClick={() => setClaimFilter(value)}
+                >
+                  {label} <span>{count}</span>
+                </button>
+              )
+            })}
+          </nav>
+
+          {canUpdateStatus && (
+            <div className="admin-bulk-actions">
+              <span>{availableSelectedOrders.length} active {availableSelectedOrders.length === 1 ? 'order' : 'orders'} selected</span>
+              <button
+                className="button-primary"
+                type="button"
+                disabled={busyOrder === '__bulk__' || availableSelectedOrders.length === 0}
+                onClick={markSelectedAsClaimed}
+              >
+                {busyOrder === '__bulk__' ? 'UPDATING…' : 'MARK SELECTED AS CLAIMED'}
+              </button>
+            </div>
+          )}
 
           {!ordersLoading && filteredOrders.length === 0 && <p>No matching orders found.</p>}
 
-          {filteredOrders.map((order) => (
+          {filteredOrders.map((order) => {
+            const progress = getClaimProgress(order)
+            const isCancelled = order.status?.toLowerCase() === 'cancelled'
+            return (
             <article className="admin-order" key={order.id}>
               <div className="admin-order-heading">
                 <div>
                   <b>{order.reference_code}</b>
                   <span>{new Date(order.created_at).toLocaleString()}</span>
+                  <span className={`admin-claim-badge ${isCancelled ? 'is-cancelled' : `is-${progress.status}`}`}>
+                    {isCancelled ? 'CANCELLED' : progress.status === 'partial' ? 'PARTIALLY CLAIMED' : progress.status === 'claimed' ? 'FULLY CLAIMED' : 'UNCLAIMED'}
+                    {!isCancelled && ` · ${progress.claimed}/${progress.total}`}
+                  </span>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  {canUpdateStatus && !isCancelled && (
+                    <label className="admin-order-select">
+                      <input
+                        type="checkbox"
+                        aria-label={`Select ${order.reference_code} for bulk claim`}
+                        checked={selectedOrderIds.includes(order.id)}
+                        onChange={(event) => setSelectedOrderIds((current) => (
+                          event.target.checked
+                            ? [...current, order.id]
+                            : current.filter((id) => id !== order.id)
+                        ))}
+                      />
+                      SELECT
+                    </label>
+                  )}
                   {/* UPDATE STATUS */}
                   {canUpdateStatus ? (
                     <select
                       aria-label={`Status for ${order.reference_code}`}
-                      disabled={busyOrder === order.id}
+                      disabled={busyOrder === order.id || busyOrder === '__bulk__'}
                       value={order.status ? order.status.toUpperCase() : 'PENDING'}
                       onChange={(event) => updateStatus(order.id, event.target.value)}
                     >
@@ -644,7 +884,7 @@ export default function Admin() {
                     <button
                       className="button-secondary"
                       type="button"
-                      disabled={busyOrder === order.id}
+                      disabled={busyOrder === order.id || busyOrder === '__bulk__'}
                       style={{ color: 'var(--color-error, #d9534f)', borderColor: 'var(--color-error, #d9534f)' }}
                       onClick={() => deleteOrder(order.id, order.reference_code)}
                     >
@@ -713,6 +953,19 @@ export default function Admin() {
                     <li key={item.id || idx}>
                       <div>
                         <span>{item.quantity} × {cleanProductName}</span>
+                        <label className="admin-item-claim">
+                          CLAIMED
+                          <select
+                            aria-label={`Claimed quantity for ${cleanProductName} in ${order.reference_code}`}
+                            value={Number(item.claimed_quantity) || 0}
+                            disabled={!canUpdateStatus || isCancelled || busyOrder === item.id || busyOrder === '__bulk__'}
+                            onChange={(event) => updateClaimedQuantity(order.id, item.id, event.target.value)}
+                          >
+                            {Array.from({ length: Number(item.quantity) + 1 }, (_, value) => (
+                              <option key={value} value={value}>{value} / {item.quantity}</option>
+                            ))}
+                          </select>
+                        </label>
 
                         <div className="admin-item-selections" style={{ marginTop: '4px', color: 'var(--color-text-muted, #666)' }}>
                           {subDetailsText && (
@@ -748,8 +1001,46 @@ export default function Admin() {
                   <b>{formatMoney(order.gcash_fee)}</b>
                 </div>
               )}
+              <section className="admin-order-notes" aria-label={`Admin notes for ${order.reference_code}`}>
+                <h3>ADMIN NOTES</h3>
+                {(order.store_order_admin_notes ?? []).length === 0 ? (
+                  <p>No admin notes yet.</p>
+                ) : (
+                  <ul>
+                    {[...(order.store_order_admin_notes ?? [])]
+                      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                      .map((note) => (
+                        <li key={note.id}>
+                          <b>[{new Date(note.created_at).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' })} - {note.officer_name}]</b>
+                          <span>{note.note}</span>
+                        </li>
+                      ))}
+                  </ul>
+                )}
+                {canUpdateStatus && (
+                  <div className="admin-note-compose">
+                    <textarea
+                      aria-label={`Add admin note for ${order.reference_code}`}
+                      maxLength={2000}
+                      placeholder={`Add a note as ${adminUsername}…`}
+                      value={noteDrafts[order.id] ?? ''}
+                      onChange={(event) => setNoteDrafts((current) => ({ ...current, [order.id]: event.target.value }))}
+                      disabled={busyOrder === order.id || busyOrder === '__bulk__'}
+                    />
+                    <button
+                      className="button-secondary"
+                      type="button"
+                      disabled={busyOrder === order.id || busyOrder === '__bulk__' || !noteDrafts[order.id]?.trim()}
+                      onClick={() => addAdminNote(order.id)}
+                    >
+                      SAVE NOTE
+                    </button>
+                  </div>
+                )}
+              </section>
             </article>
-          ))}
+            )
+          })}
         </section>
       )}
     </main>

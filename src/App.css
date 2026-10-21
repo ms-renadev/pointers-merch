@@ -458,12 +458,25 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .admin-orders-title { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px; }
 .admin-orders-title h2 { font: 600 22px var(--display); }
 .admin-orders-title span { color: var(--pink); font: 600 10px var(--mono); }
+.admin-claim-filters { display: flex; gap: 7px; margin: 12px 0; overflow-x: auto; }
+.admin-claim-filter { display: inline-flex; align-items: center; gap: 8px; flex: 0 0 auto; min-height: 34px; padding: 7px 10px; border: 1px solid #d4ced1; color: var(--ink); background: white; font: 8px var(--mono); cursor: pointer; }
+.admin-claim-filter span { color: var(--muted); }
+.admin-claim-filter.is-active { border-color: var(--pink); color: var(--pink); background: #fff5fa; }
+.admin-bulk-actions { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 12px 0; padding: 10px; border: 1px solid #e6e1e4; background: white; }
+.admin-bulk-actions > span { color: var(--muted); font: 9px var(--mono); }
 .admin-order { margin: 12px 0; padding: 16px; border: 1px solid #e6e1e4; background: white; }
 .admin-order-heading, .admin-order-heading > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .admin-order-heading > div { justify-content: flex-start; flex-wrap: wrap; }
 .admin-order-heading > div b { color: var(--pink); font: 700 12px var(--mono); }
 .admin-order-heading > div span, .admin-order-customer > span { color: var(--muted); font: 9px var(--mono); }
 .admin-order-heading select { padding: 6px 8px; border: 1px solid #d4ced1; background: var(--panel); font: 9px var(--mono); text-transform: uppercase; }
+.admin-order-heading .admin-claim-badge { padding: 5px 7px; border-radius: 2px; font: 700 8px var(--mono); }
+.admin-order-heading .admin-claim-badge.is-unclaimed { color: #7c2538; background: #f9e7eb; }
+.admin-order-heading .admin-claim-badge.is-partial { color: #8a4d00; background: #fff0cf; }
+.admin-order-heading .admin-claim-badge.is-claimed { color: #17653d; background: #e1f3e9; }
+.admin-order-heading .admin-claim-badge.is-cancelled { color: #666; background: #eee; }
+.admin-order-select { display: inline-flex; align-items: center; gap: 4px; color: var(--muted); font: 8px var(--mono); }
+.admin-order-select input { accent-color: var(--pink); }
 .admin-order-customer { display: grid; gap: 5px; margin-top: 12px; }
 .admin-order-customer > b { font-size: 12px; }
 .admin-order ul { display: grid; gap: 7px; margin: 14px 0; padding: 0; list-style: none; }
@@ -471,8 +484,19 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
 .admin-order li span { min-width: 0; }
 .admin-order li small { display: block; margin-top: 4px; color: var(--muted); font: 8px/1.5 var(--mono); }
 .admin-order li b { white-space: nowrap; }
+.admin-item-claim { display: inline-flex; align-items: center; gap: 6px; margin: 5px 0; color: var(--muted); font: 8px var(--mono); }
+.admin-item-claim select { padding: 4px 6px; border: 1px solid #d4ced1; background: white; font: 9px var(--mono); }
 .admin-order-total { display: flex; justify-content: space-between; gap: 15px; color: var(--muted); font: 9px var(--mono); }
 .admin-order-total b { color: var(--pink); white-space: nowrap; }
+.admin-order-notes { margin-top: 14px; padding-top: 12px; border-top: 1px solid #e6e1e4; }
+.admin-order-notes h3 { margin: 0 0 8px; font: 600 10px var(--mono); }
+.admin-order-notes > p { color: var(--muted); font-size: 9px; }
+.admin-order-notes ul { margin: 0 0 10px; }
+.admin-order-notes li { display: grid; gap: 4px; font-size: 9px; line-height: 1.5; }
+.admin-order-notes li b { color: var(--pink); font: 700 8px var(--mono); white-space: normal; }
+.admin-note-compose { display: flex; align-items: flex-start; gap: 8px; }
+.admin-note-compose textarea { flex: 1; min-height: 58px; padding: 8px; border: 1px solid #d4ced1; resize: vertical; font: 10px/1.5 var(--mono); }
+.admin-note-compose button { flex: 0 0 auto; }
 .form-error { margin: 0; padding: 10px; color: #93000a; background: #ffdad6; font-size: 11px; line-height: 1.5; }
 
 @media (max-width: 720px) {
@@ -487,4 +511,10 @@ tbody td:first-child { color: var(--pink); font-weight: 600; }
   .admin-product-summary-row span { text-align: left; white-space: normal; }
   .admin-order { padding: 11px; }
   .admin-order li, .admin-order-total { font-size: 8px; }
+  .admin-order-heading { align-items: flex-start; flex-direction: column; }
+  .admin-order-heading > div:last-child { width: 100%; flex-wrap: wrap; }
+  .admin-order-heading > div:last-child > button { flex: 1; }
+  .admin-bulk-actions { align-items: stretch; flex-direction: column; }
+  .admin-note-compose { flex-direction: column; }
+  .admin-note-compose textarea, .admin-note-compose button { width: 100%; }
 }
